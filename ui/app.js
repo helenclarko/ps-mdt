@@ -5072,3 +5072,11 @@ window.addEventListener("load", function () {
       }
     });
 });
+
+/* Roster added by wayde */
+window.addEventListener('message', (event) => {
+	let data = event.data
+	if(data.action == 'showRoster') {
+	 document.getElementById('showRoster').innerHTML = data.roster
+	}
+})
