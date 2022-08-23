@@ -72,6 +72,8 @@ RegisterCommand('mdt', function()
     if not PlayerData.metadata["isdead"] and not PlayerData.metadata["inlaststand"] and not PlayerData.metadata["ishandcuffed"] and not IsPauseMenuActive() then
         if GetJobType(PlayerData.job.name) ~= nil then
             TriggerServerEvent('mdt:server:openMDT')
+			-- Added by wayde for roster
+			TriggerEvent('mdt:client:getMDTemployees', PlayerData.job.name)
         end
     else
         QBCore.Functions.Notify("Can't do that!", "error")
