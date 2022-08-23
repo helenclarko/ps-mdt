@@ -616,7 +616,7 @@ RegisterNUICallback("getPenalCode", function(data, cb)
 end)
 
 RegisterNUICallback("toggleDuty", function(data, cb)
-    TriggerServerEvent('QBCore:ToggleDuty')
+    TriggerServerEvent('police:client:onandoffduty')
     cb(true)
 end)
 
