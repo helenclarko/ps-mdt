@@ -904,32 +904,33 @@ end)
 
 RegisterNetEvent('mdt:client:getMDTemployees')
 AddEventHandler('mdt:client:getMDTemployees', function(jobname)
-QBCore.Functions.TriggerCallback('qb-bossmenu:server:GetEmployees', function(cb)
-	local rosterHTML = "<table><tbody><tr><th>On Duty</th><th>Status</th><th>Call Sign</th><th>Name</th><th>Rank</th></tr>"
+	QBCore.Functions.TriggerCallback('qb-bossmenu:server:GetEmployees', function(cb)
+		local rosterHTML = "<table><tbody><tr><th>On Duty</th><th>Status</th><th>Call Sign</th><th>Name</th><th>Rank</th></tr>"
 
-	for k,value in pairs(cb) do
-		name = json.encode(value.name)
-		grade = json.encode(value.grade.name)
-		empSource = value.citizenid
-		
-		callsign = json.encode(value.callsign)
-		if(value.active == true)
-			then
-			duty = "<td bgcolor='green' width='5%'>"
-			else
-			duty = "<td bgcolor='red' width='5%'>"
-			end
-			if(value.diff < 1209769000.0)
-				then 
-				rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='green' width='5%'>" .. "  " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
-				end
-				if (value.diff > 1209769000.0 and value.diff < 2678604000.0)
+		for k,value in pairs(cb) do
+			name = json.encode(value.name)
+			grade = json.encode(value.grade.name)
+			empSource = value.citizenid
+			
+			callsign = json.encode(value.callsign)
+			if(value.active == true)
 				then
-				rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='orange' width='5%'>" .. " " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
+				duty = "<td bgcolor='green' width='5%'>"
+				else
+				duty = "<td bgcolor='red' width='5%'>"
 				end
-				if (value.diff > 2678604000.0)
-				then
-				rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='red' width='5%'>" .. "  " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
+				if(value.diff < 1209769000.0)
+					then 
+					rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='green' width='5%'>" .. "  " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
+					end
+					if (value.diff > 1209769000.0 and value.diff < 2678604000.0)
+					then
+					rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='orange' width='5%'>" .. " " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
+					end
+					if (value.diff > 2678604000.0)
+					then
+					rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='red' width='5%'>" .. "  " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
+				end
 			end
 		end
 		rosterHTML = rosterHTML .. "</tbody></table>"
