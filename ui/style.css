@@ -5916,3 +5916,12 @@ span.civilian-tag-reports-input[contenteditable]:empty::before {
 .cams-items:hover {
     background-color: var(--color-3);
 }
+
+/* added by wayde for roster */
+
+#showRoster th {
+  background-color: #04AA6D;
+  color: white;
+}
+#showRoster tr:nth-child(even){background-color: #f2f2f2}
+#showRoster tr:nth-child(odd){background-color: #808080}
