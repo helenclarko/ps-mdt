@@ -913,24 +913,19 @@ AddEventHandler('mdt:client:getMDTemployees', function(jobname)
 			empSource = value.citizenid
 			
 			callsign = json.encode(value.callsign)
-			if(value.active == true)
-				then
+			if(value.active == true) then
 				duty = "<td bgcolor='green' width='5%'>"
-				else
+			else
 				duty = "<td bgcolor='red' width='5%'>"
-				end
-				if(value.diff < 1209769000.0)
-					then 
-					rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='green' width='5%'>" .. "  " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
-					end
-					if (value.diff > 1209769000.0 and value.diff < 2678604000.0)
-					then
-					rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='orange' width='5%'>" .. " " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
-					end
-					if (value.diff > 2678604000.0)
-					then
-					rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='red' width='5%'>" .. "  " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
-				end
+			end
+			if(value.diff < 1209769000.0) then 
+				rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='green' width='5%'>" .. "  " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
+			end
+			if (value.diff > 1209769000.0 and value.diff < 2678604000.0) then
+				rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='orange' width='5%'>" .. " " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
+			end
+			if (value.diff > 2678604000.0) then
+				rosterHTML = rosterHTML .. "<tr>" .. duty .. "<td bgcolor='red' width='5%'>" .. "  " .. "</td><td style='text-align:center' width='5%'>" .. callsign:gsub('%"', '') .. "</td><td>" .. name:gsub('%"', '') .. "</td><td>" .. grade:gsub('%"', '') .. "</td></tr>"
 			end
 		end
 		rosterHTML = rosterHTML .. "</tbody></table>"
