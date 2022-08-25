@@ -51,6 +51,13 @@ RegisterNetEvent('QBCore:Player:SetPlayerData', function(val)
     PlayerData = val
 end)
 
+RegisterNetEvent('mdt:client:openMDT')
+AddEventHandler('mdt:client:openMDT', function()
+    TriggerServerEvent('mdt:server:openMDT')
+	-- Added by wayde for roster
+	TriggerEvent('mdt:client:getMDTemployees', PlayerData.job.name)
+end)
+
 AddEventHandler('onResourceStart', function(resourceName)
     if GetCurrentResourceName() ~= resourceName then return end
     Wait(150)
