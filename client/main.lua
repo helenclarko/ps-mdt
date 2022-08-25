@@ -625,6 +625,7 @@ RegisterNUICallback("getPenalCode", function(data, cb)
 end)
 
 RegisterNUICallback("toggleDuty", function(data, cb)
+	print("duty")
     TriggerServerEvent('police:client:onandoffduty')
     cb(true)
 end)
