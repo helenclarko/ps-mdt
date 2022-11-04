@@ -833,6 +833,7 @@ end) ]]
 RegisterNUICallback("removeImpound", function(data, cb)
     local ped = PlayerPedId()
     local playerPos = GetEntityCoords(ped)
+	print("Removing impound")
     for k, v in pairs(Config.ImpoundLocations) do
         if (#(playerPos - vector3(v.x, v.y, v.z)) < 20.0) then
             TriggerServerEvent('mdt:server:removeImpound', data['plate'], k)
