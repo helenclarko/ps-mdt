@@ -695,7 +695,7 @@ QBCore.Functions.CreateCallback('mdt:server:SearchVehicles', function(source, cb
 	if Player then
 		local JobType = GetJobType(Player.PlayerData.job.name)
 		if JobType == 'police' or JobType == 'doj' then
-			local vehicles = MySQL.query.await("SELECT pv.id, pv.citizenid, pv.plate, pv.vehicle, pv.mods, pv.state, p.charinfo FROM `player_vehicles` pv LEFT JOIN players p ON pv.citizenid = p.citizenid WHERE LOWER(`plate`) LIKE :query OR LOWER(`vehicle`) LIKE :query LIMIT 25", {
+			local vehicles = MySQL.query.await("SELECT pv.id, pv.citizenid, pv.plate, pv.vehicle, pv.mods, pv.state, p.charinfo FROM shared_vehicles pv LEFT JOIN players p ON pv.citizenid = p.citizenid WHERE LOWER(plate) LIKE :query OR LOWER(vehicle) LIKE :query UNION SELECT pv.id, pv.citizenid, pv.plate, pv.vehicle, pv.mods, pv.state, p.charinfo FROM player_vehicles pv LEFT JOIN players p ON pv.citizenid = p.citizenid WHERE LOWER(plate) LIKE :query OR LOWER(vehicle) LIKE :query LIMIT 25", {
 				query = string.lower('%'..sentData..'%')
 			})
 
@@ -746,7 +746,7 @@ RegisterNetEvent('mdt:server:getVehicleData', function(plate)
 		if Player then
 			local JobType = GetJobType(Player.PlayerData.job.name)
 			if JobType == 'police' or JobType == 'doj' then
-				local vehicle = MySQL.query.await("select pv.*, p.charinfo from player_vehicles pv LEFT JOIN players p ON pv.citizenid = p.citizenid where pv.plate = :plate LIMIT 1", { plate = string.gsub(plate, "^%s*(.-)%s*$", "%1")})
+				local vehicle = MySQL.query.await("select pv.vehicle, pv.state, pv.plate, pv.mods, p.charinfo from player_vehicles pv LEFT JOIN players p ON pv.citizenid = p.citizenid where pv.plate = :plate UNION SELECT pv.vehicle, pv.state, pv.plate, pv.mods, p.charinfo from shared_vehicles pv LEFT JOIN players p ON pv.citizenid = p.citizenid where pv.plate = :plate LIMIT 1", { plate = string.gsub(plate, "^%s*(.-)%s*$", "%1")})
 				if vehicle and vehicle[1] then
 					vehicle[1]['impound'] = false
 					if vehicle[1].state == 2 then
