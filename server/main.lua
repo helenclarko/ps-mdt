@@ -729,6 +729,10 @@ QBCore.Functions.CreateCallback('mdt:server:SearchVehicles', function(source, cb
 				local ownerResult = json.decode(value.charinfo)
 
 				value.owner = ownerResult['firstname'] .. " " .. ownerResult['lastname']
+				if value.owner == "Shared Vehicle" then
+					local faction = MySQL.query.await("SELECT faction FROM shared_vehicles WHERE plate = ? LIMIT 1", {value.plate})
+					value.owner = value.owner .. ' - ' .. faction[1]['faction']
+				end
 			end
 			-- idk if this works or I have to call cb first then return :shrug:
 			return cb(vehicles)
@@ -760,7 +764,10 @@ RegisterNetEvent('mdt:server:getVehicleData', function(plate)
 
 					local ownerResult = json.decode(vehicle[1].charinfo)
 					vehicle[1]['name'] = ownerResult['firstname'] .. " " .. ownerResult['lastname']
-
+				if vehicle[1]['name'] == "Shared Vehicle" then
+					local faction = MySQL.query.await("SELECT faction FROM shared_vehicles WHERE plate = ? LIMIT 1", {vehicle[1]['plate']})
+					vehicle[1]['name'] = vehicle[1]['name'] .. ' - ' .. faction[1]['faction']
+				end
 					local color1 = json.decode(vehicle[1].mods)
 					vehicle[1]['color1'] = color1['color1']
 
