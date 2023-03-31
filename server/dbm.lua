@@ -34,20 +34,15 @@ end
 
 -- idk what this is used for either
 function GetPersonInformation(cid, jobtype)
-	local result = MySQL.query.await('SELECT information, tags, gallery, pfp, fingerprint FROM mdt_data WHERE cid = ? and jobtype = ?', { cid,  jobtype})
+	local result = MySQL.query.await('SELECT information, tags, gallery, pfp FROM mdt_data WHERE cid = ? and jobtype = ?', { cid,  jobtype})
 	return result[1]
 	-- return exports.oxmysql:executeSync('SELECT information, tags, gallery FROM mdt WHERE cid= ? and type = ?', { cid, jobtype })
 end
 
-function GetPfpFingerPrintInformation(cid)
-	local result = MySQL.query.await('SELECT pfp, fingerprint FROM mdt_data WHERE cid = ?', { cid })
-	return result[1]
-end
-
--- idk but I guess sure?
 function GetIncidentName(id)
 	-- Should also be a scalar
-	return MySQL.query.await('SELECT title FROM `mdt_incidents` WHERE id = :id LIMIT 1', { id = id })
+	local result = MySQL.query.await('SELECT title FROM `mdt_incidents` WHERE id = :id LIMIT 1', { id = id })
+    return result[1]
 	-- return exports.oxmysql:executeSync('SELECT title FROM `mdt_incidents` WHERE id = :id LIMIT 1', { id = id })
 end
 
@@ -94,11 +89,6 @@ function GetPlayerDataById(id)
 	-- return exports.oxmysql:executeSync('SELECT citizenid, charinfo, job FROM players WHERE citizenid = ? LIMIT 1', { id })
 end
 
--- Probs also best not to use
---[[ function GetImpoundStatus(vehicleid, cb)
-	cb( #(exports.oxmysql:executeSync('SELECT id FROM `impound` WHERE `vehicleid`=:vehicleid', {['vehicleid'] = vehicleid })) > 0 )
-end ]]
-
 function GetBoloStatus(plate)
 	local result = MySQL.scalar.await('SELECT id FROM `mdt_bolos` WHERE LOWER(`plate`)=:plate', { plate = string.lower(plate)})
 	return result
@@ -114,6 +104,11 @@ end
 function GetVehicleInformation(plate, cb)
     local result = MySQL.query.await('SELECT id, information FROM `mdt_vehicleinfo` WHERE plate=:plate', { plate = plate})
 	cb(result)
+end
+
+function GetPlayerApartment(cid, cb)
+    local result =  MySQL.query.await('SELECT name, type, label FROM apartments where citizenid = ?', {cid})
+    return result
 end
 
 function GetPlayerLicenses(identifier)
@@ -160,7 +155,7 @@ function ManageLicense(identifier, type, status)
     end
 end
 
-function ManageLicenses(identifier, incomingLicenses)
+function UpdateAllLicenses(identifier, incomingLicenses)
     local Player = QBCore.Functions.GetPlayerByCitizenId(identifier)
     if Player ~= nil then
         Player.Functions.SetMetaData("licences", incomingLicenses)

@@ -3,6 +3,7 @@ let canSaveProfile = true;
 let canRefreshBolo = true;
 let canRefreshReports = true;
 let canRefreshIncidents = true;
+let canSearchForWeapons = true;
 let canInputTag = true;
 let canInputBoloTag = true;
 let canInputBoloOfficerTag = true;
@@ -17,16 +18,28 @@ let canInputReportCivilianTag = true;
 let canSearchForVehicles = true;
 let canSearchForReports = true;
 let canSaveVehicle = true;
+let canSaveWeapon = true;
 var LastName = "";
 var DispatchNum = 0;
 var playerJob = "";
 let rosterLink  = "";
+let sopLink = "";
+
+//Set this to false if you don't want to show the send to community service button on the incidents page
+const canSendToCommunityService = true
 
 let impoundChanged = false;
 
 // TEMP CONFIG OF JOBS
 const PoliceJobs = {
   ['police']: true,
+  ['lspd']: true,
+  ['bcso']: true,
+  ['sast']: true,
+  ['sasp']: true, 
+  ['sapr']: true,
+  ['doc']: true,
+  ['lssd']: true,
 }
 
 const AmbulanceJobs = {
@@ -34,7 +47,8 @@ const AmbulanceJobs = {
 }
 
 const DojJobs = {
-  ['lawyer']: true
+  ['lawyer']: true,
+  ['judge']: true
 }
 
 const MONTH_NAMES = [
@@ -119,6 +133,16 @@ function timeAgo(dateParam) {
   return getFormattedDate(date);
 }
 
+function closeContainer(selector) {
+  if (
+       $(selector).css("display") != "none"
+     ) {
+       shouldClose = false;
+       $(selector).fadeOut(50);
+       $(".close-all").css("filter", "none");
+     }
+}
+
 $(document).ready(() => {
   $(".header").hover(
     function () {
@@ -177,30 +201,42 @@ $(document).ready(() => {
         .addClass("fa-plus");
     }
 
+    const { vehicles, tags, gallery, convictions, incidents, properties } = result
+
     $(".manage-profile-editing-title").html(`You are currently editing ${result["firstname"]} ${result["lastname"]}`);
     $(".manage-profile-citizenid-input").val(result['cid']);
     $(".manage-profile-name-input-1").val(result["firstname"]);
     $(".manage-profile-name-input-2").val(result["lastname"]);
     $(".manage-profile-dob-input").val(result["dob"]);
+    if (convictions.length >= 1) {
+      $(".manage-profile-fingerprint-input").val(result["fingerprint"]);
+    }
+    else {
+      $(".manage-profile-fingerprint-input").val("No Fingerprints found!");
+    }
+    $(".manage-profile-phonenumber-input").val(result["phone"]);
     $(".manage-profile-job-input").val(`${result.job}, ${result.grade}`);
+    $(".manage-profile-apartment-input").val(`${result.apartment}`);
     $(".manage-profile-url-input").val(result["profilepic"] ?? "");
     $(".manage-profile-info").val(result["mdtinfo"]);
     $(".manage-profile-info").removeAttr("disabled");
-    $(".manage-profile-fingerprint").val(result["fingerprint"]);
-    $(".manage-profile-fingerprint").removeAttr("disabled");
     $(".manage-profile-pic").attr("src", result["profilepic"] ?? "img/male.png");
-
-    const { vehicles, tags, gallery, convictions, properties } = result
+    $(".manage-profile-active-warrant").css("display", "none")
+    if (result["warrant"]) {
+      $(".manage-profile-active-warrant").css("display", "block");
+    }
 
     $(".licenses-holder").empty();
     $(".tags-holder").empty();
     $(".vehs-holder").empty();
     $(".gallery-inner-container").empty();
     $(".convictions-holder").empty();
+    $(".profile-incidents-holder").empty();
 
     let licencesHTML = '<div style="color: #fff; text-align:center;">No Licenses</div>';
     let tagsHTML = '<div style="color: #fff; text-align:center;">No Tags</div>';
-    let convHTML = '<div style="color: #fff; text-align:center;">Clean Record ?</div>';
+    let convHTML = '<div style="color: #fff; text-align:center;">Clean Record</div>';
+    let incidentsHTML = '<div style="color: #fff; text-align:center;">No Incidents</div>';
     let vehHTML = '<div style="color: #fff; text-align:center;">No Vehicles</div>';
     let galleryHTML = '<div style="color: #fff; text-align:center;">No Photos</div>';
     let propertyHTML = '<div style="color: #fff; text-align:center;">No Properties</div>';
@@ -214,25 +250,43 @@ $(document).ready(() => {
     }
 
     if (licenses.length > 0 && (PoliceJobs[playerJob] !== undefined || DojJobs[playerJob] !== undefined)) {
-        licencesHTML = '';
-        for (const [lic, hasLic] of licenses) {
+      licencesHTML = '';
+      for (const [lic, hasLic] of licenses) {
+        let tagColour = hasLic == true ? "green-tag" : "red-tag";
+        licencesHTML += `<span class="license-tag ${tagColour} ${lic}" data-type="${lic}">${titleCase(lic)}</span>`;
+      }
 
-          let tagColour = hasLic == true ? "green-tag" : "red-tag";
-          licencesHTML += `<span class="license-tag ${tagColour} ${lic}" data-type="${lic}">${titleCase(lic)}</span>`;
-        }
       if (vehicles && vehicles.length > 0) {
-
         vehHTML = '';
         vehicles.forEach(value => {
           vehHTML += `<div class="veh-tag" data-plate="${value.plate}">${value.plate} - ${value.model} </div>`
         })
       }
+
       if (convictions && convictions.length > 0) {
         convHTML = '';
         convictions.forEach(value => {
           convHTML += `<div class="white-tag">${value} </div>`;
         })
       }
+
+      if (incidents && incidents.length > 0) {
+        incidentsHTML='';
+        // Sort incidents so most recent appear first
+        const sortedIncidents = incidents.sort((a,b) => b.time - a.time);
+        sortedIncidents.forEach(value => {
+          incidentsHTML += `<div class="white-tag" data-id=${value.id}>
+            <div style="display: flex">
+              <div class="incident-number">${value.id}</div>
+              <div>
+                ${value.title}
+                <div class="incident-timestamp">${getFormattedDate(new Date(Number(value.time)))}</div>
+              </div>
+            </div>
+          </div>`
+        })
+      }
+
       if (properties && properties.length > 0) {
         propertyHTML = '';
         properties.forEach(value => {
@@ -240,6 +294,7 @@ $(document).ready(() => {
         })
       }
     }
+
     if (tags && tags.length > 0) {
       tagsHTML = '';
       tags.forEach((tag) => {
@@ -267,6 +322,7 @@ $(document).ready(() => {
     $(".licenses-holder").html(licencesHTML);
     $(".tags-holder").html(tagsHTML);
     $(".convictions-holder").html(convHTML);
+    $(".profile-incidents-holder").html(incidentsHTML);
     $(".vehs-holder").html(vehHTML);
     $(".gallery-inner-container").html(galleryHTML);
     $(".houses-holder").html(propertyHTML);
@@ -367,11 +423,39 @@ $(document).ready(() => {
       $(".bulletin-add-btn").removeClass("fa-minus").addClass("fa-plus");
     }
   });
+
   $(".associated-incidents-tags-add-btn").on("click", "", function () {
-    document.addEventListener("mouseup", onMouseDownIcidents);
-    $(".icidents-person-search-container").fadeIn(250);
+    document.addEventListener("mouseup", onMouseDownIncidents);
+    const source = "associated-incidents-tags";
+    $(".incidents-person-search-holder").attr("data-source", source);
+    $(".incidents-person-search-container").fadeIn(250); // makes the container visible
     $(".close-all").css("filter", "brightness(15%)");
   });
+
+  $(".manage-convictions-container").on("click", "", function () {
+    if ($(".manage-profile-citizenid-input").val()) {
+      document.addEventListener("mouseup", onMouseDownIncidents);
+      const source = "manage-convictions-container";
+      $(".convictions-holder").attr("data-source", source);
+      $(".convictions-known-container").fadeIn(250); // makes the container visible
+      $(".close-all").css("filter", "brightness(15%)");
+    } else {
+      $(this).effect("shake", { times: 2, distance: 2 }, 500);
+    }
+  });
+
+  $(".manage-profile-incidents-container").on("click", "", function () {
+    if ($(".manage-profile-citizenid-input").val()) {
+      document.addEventListener("mouseup", onMouseDownIncidents);
+      const source = "manage-profile-incidents-container";
+      $(".profile-incidents-holder").attr("data-source", source);
+      $(".incidents-known-container").fadeIn(250); // makes the container visible
+      $(".close-all").css("filter", "brightness(15%)");
+    } else {
+      $(this).effect("shake", { times: 2, distance: 2 }, 500);
+    }
+  });
+
   $(".gallery-add-btn").click(function () {
     if ($(".manage-profile-citizenid-input").val()) {
       if ($(".gallery-upload-input").css("display") == "none") {
@@ -428,11 +512,11 @@ $(document).ready(() => {
         let licenses = {};
 
         $(".tags-holder")
-          .find("div")
+          .find("span.tag-input, div.tag")
           .each(function () {
-            if ($(this).text() != "" && $(this).text() != "No Tags") {
-              tags.push($(this).text());
-            }
+          if ($(this).text() != "" && $(this).text() != "No Tags") {
+            tags.push($(this).text());
+          }
         });
 
         $(".gallery-inner-container")
@@ -451,7 +535,6 @@ $(document).ready(() => {
           pfp = newpfp;
         }
         let description = $(".manage-profile-info").val();
-        let fingerprint = $(".manage-profile-fingerprint").val();
         let id = $(".manage-profile-citizenid-input").val();
 
         $(".licenses-holder")
@@ -479,7 +562,6 @@ $(document).ready(() => {
             sName: sName,
             tags: tags,
             gallery: gallery,
-            fingerprint: fingerprint,
             licenses: licenses
           })
         );
@@ -715,6 +797,7 @@ $(document).ready(() => {
         "pointer-events",
         "auto"
       );
+
     }
   );
   $(".tags-add-btn").click(function () {
@@ -811,6 +894,9 @@ $(document).ready(() => {
   $(".contextmenu").on("click", ".remove-image", function () {
     removeImage($(this).data("info"));
   });
+  $(".contextmenu").on("click", ".copy-image-link", function () {
+    copyImageSource($(this).data("info"));
+  });
   $(".contextmenu").on("click", ".remove-image-incident", function () {
     $(".manage-incidents-evidence-holder img")
       .filter("[src='" + $(this).data("info") + "']")
@@ -832,6 +918,13 @@ $(document).ready(() => {
           className: "expand-image",
           icon: "fas fa-expand",
           text: "Expand Image",
+          info: $(this).attr("src"),
+          status: $(this).css("filter"),
+        },
+        {
+          className: "copy-image-link",
+          icon: "fa-regular fa-copy",
+          text: "Copy Image Link",
           info: $(this).attr("src"),
           status: $(this).css("filter"),
         },
@@ -1017,7 +1110,7 @@ $(document).ready(() => {
       })
     );
   });
-  $(".manage-incidents-civilians-holder").on("click", ".manage-incidents-civilians", async function () {
+  $(".manage-incidents-civilians-holder").on("click", ".tag", async function () {
       const name = $(this).text();
       fidgetSpinner(".profile-page-container");
       currentTab = ".profile-page-container";
@@ -1060,13 +1153,9 @@ $(document).ready(() => {
         $(".incidents-image-enlarged").css("display", "none");
       }
 
-      if (
-        $(".icidents-person-search-container").css("display") != "none"
-      ) {
-        shouldClose = false;
-        $(".icidents-person-search-container").fadeOut(250);
-        $(".close-all").css("filter", "none");
-      }
+      closeContainer(".incidents-person-search-container");
+      closeContainer(".convictions-known-container");
+      closeContainer(".incidents-known-container");
 
       if ($(".incidents-charges-table").css("display") != "none") {
         shouldClose = false;
@@ -1112,9 +1201,9 @@ $(document).ready(() => {
     }
   });
 
-  $(".icidents-person-search-name-input").on("keydown", "", function (e) {
+  $(".incidents-person-search-name-input").on("keydown", "", function (e) {
     if (e.keyCode === 13) {
-      let name = $(".icidents-person-search-name-input").val();
+      let name = $(".incidents-person-search-name-input").val();
       $.post(
         `https://${GetParentResourceName()}/incidentSearchPerson`,
         JSON.stringify({
@@ -1145,76 +1234,20 @@ $(document).ready(() => {
   );
 
   $(".manage-incidents-officers-add-btn").click(function () {
-    if ($(".officers-incident-input")[0]) {
-      $(this).removeClass("fa-minus").addClass("fa-plus");
-      $(".officers-incident-input").remove();
-    } else {
-      $(this).removeClass("fa-plus").addClass("fa-minus");
-      $(".manage-incidents-officers-holder").prepend(
-        `<span contenteditable="true" class="officers-incident-input"></span>`
-      );
-    }
+    const source = "incidents-officers";
+    document.addEventListener("mouseup", onMouseDownIncidents);
+    $(".incidents-person-search-holder").attr("data-source", source);
+    $(".incidents-person-search-container").fadeIn(250); // makes the container visible
+    $(".close-all").css("filter", "brightness(15%)");
   });
-
-  $(".manage-incidents-officers-holder").on(
-    "keydown",
-    ".officers-incident-input",
-    function (e) {
-      if (e.keyCode === 13) {
-        $(".manage-incidents-officers-holder").prepend(
-          `<div class="manage-incidents-officers">${$(
-            ".officers-incident-input"
-          ).text()}</div>`
-        );
-        // Have it save instantly if it's an existing report.
-        if (
-          $(".manage-incidents-officers-add-btn").hasClass("fa-minus")
-        ) {
-          $(".manage-incidents-officers-add-btn")
-            .removeClass("fa-minus")
-            .addClass("fa-plus");
-        }
-        $(".officers-incident-input").remove();
-      }
-    }
-  );
 
   $(".manage-incidents-civilians-add-btn").click(function () {
-    if ($(".civilians-incident-input")[0]) {
-      $(this).removeClass("fa-minus").addClass("fa-plus");
-      $(".civilians-incident-input").remove();
-    } else {
-      $(this).removeClass("fa-plus").addClass("fa-minus");
-      $(".manage-incidents-civilians-holder").prepend(
-        `<span contenteditable="true" class="civilians-incident-input"></span>`
-      );
-    }
+    const source = "incidents-civilians";
+    document.addEventListener("mouseup", onMouseDownIncidents);
+    $(".incidents-person-search-holder").attr("data-source", source);
+    $(".incidents-person-search-container").fadeIn(250); // makes the container visible
+    $(".close-all").css("filter", "brightness(15%)");
   });
-
-  $(".manage-incidents-civilians-holder").on(
-    "keydown",
-    ".civilians-incident-input",
-    function (e) {
-      if (e.keyCode === 13) {
-        $(".manage-incidents-civilians-holder").prepend(
-          `<div class="manage-incidents-civilians">${$(
-            ".civilians-incident-input"
-          ).text()}</div>`
-        );
-        // Have it save instantly if it's an existing report.
-        if (
-          $(".manage-incidents-civilians-add-btn").hasClass(
-            "fa-minus"
-          )
-        ) {
-          $(".manage-incidents-civilians-add-btn")
-            .removeClass("fa-minus")
-            .addClass("fa-plus");
-        }
-        $(".civilians-incident-input").remove();
-      }
-    }
-  );
 
   $(".manage-incidents-evidence-add-btn").click(function () {
     if ($(".incidents-upload-input").css("display") == "none") {
@@ -1271,9 +1304,9 @@ $(document).ready(() => {
       //$(".manage-bolos-new").effect("shake", { times: 2, distance: 2 }, 500)
       //} else {
       var template = "";
-      if ($(".badge-logo").attr("src") == "img/ems_badge.png") {
+      if ($(".badge-logo").attr("src") == "img/ems_badge.webp") {
         template =
-          "ICU Room #: [ # ]\n\nReport ID: [ Report ID ]\n\nTime Admitted: [ Date and Time Here ]\n\nSurgery: [Yes/No]\n\nInjuries/Ailments:\n - [ Enter List Of Injuries Here ]\n\n\nAdditional Attending:\n - [ List Any Other Staff Here ]\n\n\n🧑‍🤝‍🧑 Additonal Emergency Contacts:\n - [ Name And Number ]\n\n\nNotes:\n[Additional Notes Here]";
+          "ICU Room #: [ # ]\n\nReport ID: [ Report ID ]\n\nTime Admitted: [ Date and Time Here ]\n\nSurgery: [Yes/No]\n\nInjuries/Ailments:\n - [ Enter List Of Injuries Here ]\n\n\nAdditional Attending:\n - [ List Any Other Staff Here ]\n\n\n🧑‍🤝‍🧑 Additional Emergency Contacts:\n - [ Name And Number ]\n\n\nNotes:\n[Additional Notes Here]";
       }
       $(".manage-bolos-editing-title").html(
         "You are currently creating a new BOLO"
@@ -1294,11 +1327,6 @@ $(document).ready(() => {
       }
       if ($(".bolo-gallery-add-btn").hasClass("fa-minus")) {
         $(".bolo-gallery-add-btn")
-          .removeClass("fa-minus")
-          .addClass("fa-plus");
-      }
-      if ($(".officers-add-btn").hasClass("fa-minus")) {
-        $(".officers-add-btn")
           .removeClass("fa-minus")
           .addClass("fa-plus");
       }
@@ -1346,13 +1374,17 @@ $(document).ready(() => {
         }
       });
 
-      $(".bolo-gallery-inner-container").each(function (index) {
-        if ($(this).text() != "") {
-          gallery.push($(this).text());
+      $(".bolo-gallery-inner-container")
+      .find("img")
+      .each(function () {
+        if ($(this).attr("src") != "") {
+          gallery.push($(this).attr("src"));
         }
       });
 
-      $(".manage-officers-tags-holder").each(function (index) {
+      $(".manage-officers-tags-holder")
+      .find("div")
+      .each(function () {
         if ($(this).text() != "") {
           officers.push($(this).text());
         }
@@ -1395,6 +1427,13 @@ $(document).ready(() => {
           className: "expand-image",
           icon: "fas fa-expand",
           text: "Expand Image",
+          info: $(this).attr("src"),
+          status: $(this).css("filter"),
+        },
+        {
+          className: "copy-image-link",
+          icon: "fa-regular fa-copy",
+          text: "Copy Image Link",
           info: $(this).attr("src"),
           status: $(this).css("filter"),
         },
@@ -1534,9 +1573,6 @@ $(document).ready(() => {
         .removeClass("fa-minus")
         .addClass("fa-plus");
     }
-    if ($(".officers-add-btn").hasClass("fa-minus")) {
-      $(".officers-add-btn").removeClass("fa-minus").addClass("fa-plus");
-    }
 
     if ($(".bolo-gallery-upload-input").css("display") == "block") {
       $(".bolo-gallery-upload-input").slideUp(250);
@@ -1559,7 +1595,7 @@ $(document).ready(() => {
 
   $(".contextmenu").on("click", ".bolo-delete", function () {
     if ($(this).data("info") != 0) {
-      if ($(".badge-logo").attr("src") == "img/ems_badge.png") {
+      if ($(".badge-logo").attr("src") == "img/ems_badge.webp") {
         $(".bolos-items")
           .find("[data-id='" + $(this).data("info") + "']")
           .remove();
@@ -1593,7 +1629,7 @@ $(document).ready(() => {
         status: "",
       },
     ];
-    if ($(".badge-logo").attr("src") == "img/ems_badge.png") {
+    if ($(".badge-logo").attr("src") == "img/ems_badge.webp") {
       args = [
         {
           className: "bolo-delete",
@@ -1719,6 +1755,27 @@ $(document).ready(() => {
     }
   );
 
+  var timeout;
+  $(".offenses-main-container").on("mouseenter",".offense-item",function (e) {
+    var descr = $(this).data("descr")
+    timeout = setTimeout(function() {
+      let args = [
+          {
+            className: "incidents-remove-tag",
+            text: "Remove Tag",
+            info: descr,
+            status: "",
+          },
+        ];
+      openChargesContextMenu(e, args);
+    }, 500);
+  });
+
+  $(".offenses-main-container").on("mouseleave",".offense-item",function (e) {
+    clearTimeout(timeout)
+    hideChargesMenu();
+  });
+
   $(".bolo-gallery-inner-container").on("click", ".bolo-img", function () {
     if ($(this).css("filter") == "none") {
       $(this).css("filter", "blur(5px)");
@@ -1750,47 +1807,26 @@ $(document).ready(() => {
           info: $(this).attr("src"),
           status: $(this).css("filter"),
         },
+        {
+          className: "copy-image-link",
+          icon: "fa-regular fa-copy",
+          text: "Copy Image Link",
+          info: $(this).attr("src"),
+          status: $(this).css("filter"),
+        },
       ];
       openContextMenu(e, args);
     }
   );
 
   $(".officers-add-btn").click(function () {
-    if (canInputBoloOfficerTag) {
-      $(this).removeClass("fa-plus").addClass("fa-minus");
-      $(".manage-officers-tags-holder").prepend(
-        `<span contenteditable="true" class="officer-tag-bolo-input"></span>`
-      );
-      canInputBoloOfficerTag = false;
-    } else if (!canInputBoloOfficerTag) {
-      $(this).removeClass("fa-minus").addClass("fa-plus");
-      $(".officer-tag-bolo-input").remove();
-      canInputBoloOfficerTag = true;
-    }
+    document.addEventListener("mouseup", onMouseDownIncidents);
+    const source = "bolos-officers";
+    $(".incidents-person-search-holder").attr("data-source", source);
+    $(".incidents-person-search-container").fadeIn(250); // makes the container visible
+    $(".close-all").css("filter", "brightness(15%)");
   });
 
-  $(".manage-officers-tags-holder").on(
-    "keydown",
-    ".officer-tag-bolo-input",
-    function (e) {
-      if (e.keyCode === 13) {
-        $(".manage-officers-tags-holder").prepend(
-          `<div class="tag">${$(
-            ".officer-tag-bolo-input"
-          ).text()}</div>`
-        );
-        // Have it save instantly if it's an existing report.
-        if ($(".officers-add-btn").hasClass("fa-minus")) {
-          canInputBoloOfficerTag = true;
-          $(".officers-add-btn")
-            .removeClass("fa-minus")
-            .addClass("fa-plus");
-        }
-        canInputBoloOfficerTag = true;
-        $(".officer-tag-bolo-input").remove();
-      }
-    }
-  );
   $(".incidents-ghost-holder").on(
     "click",
     ".associated-incidents-user-tag",
@@ -1811,6 +1847,9 @@ $(document).ready(() => {
           $(".associated-incidents-sentence-input")
             .filter(`[data-id="${$(this).data("id")}"]`)
             .css("display", "none");
+          $(".associated-incidents-controls")
+            .filter(`[data-id="${$(this).data("id")}"]`)
+            .css("display", "none");
         }
       } else {
         $(this).removeClass("green-tag");
@@ -1828,10 +1867,38 @@ $(document).ready(() => {
           $(".associated-incidents-sentence-input")
             .filter(`[data-id="${$(this).data("id")}"]`)
             .fadeIn(100);
+          $(".associated-incidents-controls")
+            .filter(`[data-id="${$(this).data("id")}"]`)
+            .fadeIn(100);
         }
       }
     }
   );
+
+  $('.incidents-ghost-holder').on('click', '#jail-button', function() {
+    // Get the current sentence and recommended sentence values
+    const citizenId = $(this).data("id");
+    const sentence = $(".sentence-amount").filter(`[data-id=${citizenId}]`).val();
+    const recommendSentence = $(".sentence-recommended-amount").filter(`[data-id=${citizenId}]`).val();
+    sendToJail(citizenId, sentence, recommendSentence);
+  });
+
+  $('.incidents-ghost-holder').on('click', '#fine-button', function() {
+    // Get the current fine and recommended fine values
+    const citizenId = $(this).data("id");
+    const fine = $(".fine-amount").filter(`[data-id=${citizenId}]`).val();
+    const recommendFine = $(".fine-recommended-amount").filter(`[data-id=${citizenId}]`).val();
+    sendFine(citizenId, fine, recommendFine);
+  });
+
+  $('.incidents-ghost-holder').on('click', '#community-service-button', function() {
+    // Get the current sentence and recommended sentence values
+    const citizenId = $(this).data("id");
+    const sentence = $(".sentence-amount").filter(`[data-id=${citizenId}]`).val();
+    const recommendSentence = $(".sentence-recommended-amount").filter(`[data-id=${citizenId}]`).val();
+    sendToCommunityService(citizenId, sentence, recommendSentence);
+  });
+
   $(".contextmenu").on(
     "click",
     ".associated-incidents-remove-tag",
@@ -1874,87 +1941,79 @@ $(document).ready(() => {
       openContextMenu(e, args);
     }
   );
-  $(".icidents-person-search-holder").on(
-    "click",
-    ".icidents-person-search-item",
-    function () {
-      $(".icidents-person-search-container").fadeOut(250);
-      $(".close-all").css("filter", "none");
-      $(".associated-incidents-tags-holder").prepend(
-        `<div class="associated-incidents-tag" data-id="${$(this).data(
-          "id"
-        )}">${$(this).data("name")}</div>`
-      );
 
-      $(".incidents-ghost-holder").prepend(
-        `
-            <div class="associated-incidents-user-container" data-id="${$(
-          this
-        ).data("cid")}">
-                <div class="associated-incidents-user-title">${$(this).data(
-          "info"
-        )}</div>
+  // On click of the search item, it populates the results in the correct area that the search component was triggered from
+  $(".incidents-person-search-holder").on(
+    "click",
+    ".incidents-person-search-item",
+    function () {
+      $(".incidents-person-search-container").fadeOut(250);
+      $(".close-all").css("filter", "none");
+      
+      // This is the source element where we triggered the search component to open from
+      // It is the area where we want the results to populate when we click on a search result
+      const sourceElement = $(".incidents-person-search-holder").data("source");      
+
+      // Populate the tags for the given section that corresponds to the sourceElement
+      if (sourceElement === "incidents-civilians") {
+        $(".manage-incidents-civilians-holder").append(
+          `<div class="tag">${$(this).data("name")}</div>`
+        );
+      } else if (sourceElement === "incidents-officers") { 
+        $(".manage-incidents-officers-holder").append(
+          `<div class="tag">(${$(this).data("callsign")}) ${$(this).data("name")}</div>`
+        );
+      } else if (sourceElement === "reports-civilians") {
+        $(".reports-civilians-tags-holder").append(
+          `<div class="tag">${$(this).data("name")}</div>`
+        );
+      } else if (sourceElement === "reports-officers") {
+        $(".reports-officers-tags-holder").append(
+          `<div class="tag">(${$(this).data("callsign")}) ${$(this).data("name")}</div>`
+        );
+      } else if (sourceElement === "bolos-officers") {
+        $(".manage-officers-tags-holder").append(
+          `<div class="tag">(${$(this).data("callsign")}) ${$(this).data("name")}</div>`
+        );
+      } else if(sourceElement === "associated-incidents-tags") {
+        $(".associated-incidents-tags-holder").prepend(
+          `<div class="associated-incidents-tag" data-id="${$(this).data("id")}">${$(this).data("name")}</div>`
+        );
+  
+        // This section handles populating the fields when you add a new associated user to the incident
+        $(".incidents-ghost-holder").prepend(
+          `
+            <div class="associated-incidents-user-container" data-id="${$(this).data("cid")}">
+                <div class="associated-incidents-user-title">${$(this).data("info")}</div>
                 <div class="associated-incidents-user-tags-holder">
-                    <div class="associated-incidents-user-tag red-tag" data-id="${$(
-          this
-        ).data("cid")}">Warrant</div>
-                    <div class="associated-incidents-user-tag red-tag" data-id="${$(
-          this
-        ).data("cid")}">Guilty</div>
-                    <div class="associated-incidents-user-tag red-tag" data-id="${$(
-          this
-        ).data("cid")}">Processed</div>
-                    <div class="associated-incidents-user-tag red-tag" data-id="${$(
-          this
-        ).data("cid")}">Associated</div>
+                    <div class="associated-incidents-user-tag red-tag" data-id="${$(this).data("cid")}">Warrant</div>
+                    <div class="associated-incidents-user-tag red-tag" data-id="${$(this).data("cid")}">Guilty</div>
+                    <div class="associated-incidents-user-tag red-tag" data-id="${$(this).data("cid")}">Processed</div>
+                    <div class="associated-incidents-user-tag red-tag" data-id="${$(this).data("cid")}">Associated</div>
                 </div>
-                <div class="associated-incidents-user-holder" data-name="${$(
-          this
-        ).data("cid")}">
+                <div class="associated-incidents-user-holder" data-name="${$(this).data("cid")}"></div>
+                <div class="manage-incidents-title-tag" data-id="${$(this).data("cid")}">Recommended Fine</div>
+                <div class="associated-incidents-fine-input" data-id="${$(this).data("cid")}"><img src="img/h7S5f9J.webp"> <input disabled placeholder="0" class="fine-recommended-amount" id="fine-recommended-amount" data-id="${$(this).data("cid")}" type="number"></div>
+                <div class="manage-incidents-title-tag" data-id="${$(this).data("cid")}">Recommended Sentence</div>
+                <div class="associated-incidents-sentence-input" data-id="${$(this).data("cid")}"><img src="img/9Xn6xXK.webp"> <input disabled placeholder="0" class="sentence-recommended-amount" id="sentence-recommended-amount" data-id="${$(this).data("cid")}" type="number"></div>
+                <div class="manage-incidents-title-tag" data-id="${$(this).data("cid")}">Fine</div>
+                <div class="associated-incidents-fine-input" data-id="${$(this).data("cid")}"><img src="img/h7S5f9J.webp"> <input placeholder="Enter fine here..." value="0" class="fine-amount" data-id="${$(this).data("cid")}" type="number"></div>
+                <div class="manage-incidents-title-tag" data-id="${$(this).data("cid")}">Sentence</div>
+                <div class="associated-incidents-sentence-input" data-id="${$(this).data("cid")}"><img src="img/9Xn6xXK.webp"> <input placeholder="Enter months here..." value="0" class="sentence-amount" data-id="${$(this).data("cid")}" type="number"></div>
+                <div class="associated-incidents-controls" data-id="${$(this).data("cid")}">
+                    <div id="jail-button" class="control-button" data-id="${$(this).data("cid")}"><span class="fa-solid fa-building-columns" style="margin-top: 3.5px;"></span> Jail</div>
+                    <div id="fine-button" class="control-button" data-id="${$(this).data("cid")}"><span class="fa-solid fa-file-invoice-dollar" style="margin-top: 3.5px;"></span> Fine</div>
+                    ${canSendToCommunityService ? `<div id="community-service-button" class="control-button" data-id="${$(this).data("cid")}"> <span class="fa-solid fa-person-digging" style="margin-top: 3.5px;"></span>Community Service</div>` : ''}
                 </div>
-                <div class="manage-incidents-title-tag" data-id="${$(this).data(
-          "cid"
-        )}">Recommended Fine</div>
-                <div class="associated-incidents-fine-input" data-id="${$(
-          this
-        ).data(
-          "cid"
-        )}"><img src="https://i.imgur.com/h7S5f9J.png"> <input disabled placeholder="0" class="fine-recommended-amount" id="fine-recommended-amount" data-id="${$(
-          this
-        ).data("cid")}" type="number"></div>
-                <div class="manage-incidents-title-tag" data-id="${$(this).data(
-          "cid"
-        )}">Recommended Sentence</div>
-                <div class="associated-incidents-sentence-input" data-id="${$(
-          this
-        ).data(
-          "cid"
-        )}"><img src="https://i.imgur.com/9Xn6xXK.png"> <input disabled placeholder="0" class="sentence-recommended-amount" id="sentence-recommended-amount" data-id="${$(
-          this
-        ).data("cid")}" type="number"></div>
-                <div class="manage-incidents-title-tag" data-id="${$(this).data(
-          "cid"
-        )}">Fine</div>
-                <div class="associated-incidents-fine-input" data-id="${$(
-          this
-        ).data(
-          "cid"
-        )}"><img src="https://i.imgur.com/h7S5f9J.png"> <input placeholder="Enter fine here..." value="0" class="fine-amount" data-id="${$(
-          this
-        ).data("cid")}" type="number"></div>
-                <div class="manage-incidents-title-tag" data-id="${$(this).data(
-          "cid"
-        )}">Sentence</div>
-                <div class="associated-incidents-sentence-input" data-id="${$(
-          this
-        ).data(
-          "cid"
-        )}"><img src="https://i.imgur.com/9Xn6xXK.png"> <input placeholder="Enter months here..." value="0" class="sentence-amount" data-id="${$(
-          this
-        ).data("cid")}" type="number"></div>
             </div>
-            `
-      );
+          `
+        );
+      }
+        
+      // Clear the search results and source
+      $(".incidents-person-search-holder").removeData("source"); // Without using this line, we end up reading stale data from the data-source attribute rather than the data-source from the field we clicked on
+      $(".incidents-person-search-holder").empty(); // Clear the search results
+      $('.incidents-person-search-name-input').val(''); // Reset the search input field
     }
   );
 
@@ -1974,20 +2033,23 @@ $(document).ready(() => {
     ];
     openContextMenu(e, args);
   });
-
-  $(".contextmenu").on("click", ".incidents-remove-officer-tag", function () {
+  
+  $(".contextmenu").on("click", ".remove-tag", function () {
     $(
-      `.manage-incidents-officers:contains(${$(this).data("info")})`
+      `.tag:contains(${$(this).data("info")})`
     ).remove();
   });
 
-  $(".manage-incidents-officers-holder").on(
+  // Setup the remove tag context menu for each holder section
+  const holdersSelectors = [".manage-incidents-civilians-holder", ".manage-incidents-officers-holder", ".reports-civilians-tags-holder", ".reports-officers-tags-holder", ".manage-officers-tags-holder"];
+  holdersSelectors.forEach(holder => {
+    $(holder).on(
     "contextmenu",
-    ".manage-incidents-officers",
+    ".tag",
     function (e) {
       let args = [
         {
-          className: "incidents-remove-officer-tag",
+          className: "remove-tag",
           icon: "fas fa-times",
           text: "Remove Tag",
           info: $(this).html(),
@@ -1995,31 +2057,8 @@ $(document).ready(() => {
         },
       ];
       openContextMenu(e, args);
-    }
-  );
-
-  $(".contextmenu").on("click", ".incidents-remove-civ-tag", function () {
-    $(
-      `.manage-incidents-civilians:contains(${$(this).data("info")})`
-    ).remove();
+    });
   });
-
-  $(".manage-incidents-civilians-holder").on(
-    "contextmenu",
-    ".manage-incidents-civilians",
-    function (e) {
-      let args = [
-        {
-          className: "incidents-remove-civ-tag",
-          icon: "fas fa-times",
-          text: "Remove Tag",
-          info: $(this).html(),
-          status: "",
-        },
-      ];
-      openContextMenu(e, args);
-    }
-  );
 
   $(".incidents-search-refresh").click(function () {
     if (canRefreshIncidents == true) {
@@ -2062,6 +2101,7 @@ $(document).ready(() => {
     ];
     openContextMenu(e, args);
   });
+
   $(".reports-search-title").click(function () {
     if (canSearchReports == true) {
       if ($(".reports-search-input").css("display") == "none") {
@@ -2075,7 +2115,25 @@ $(document).ready(() => {
       }
     }
   });
-  $(".icidents-person-search-container").hover(
+  $(".incidents-person-search-container").hover(
+    function () {
+      mouse_is_inside = true;
+    },
+    function () {
+      mouse_is_inside = false;
+    }
+  );
+
+  $(".convictions-known-container").hover(
+    function () {
+      mouse_is_inside = true;
+    },
+    function () {
+      mouse_is_inside = false;
+    }
+  );
+
+  $(".incidents-known-container").hover(
     function () {
       mouse_is_inside = true;
     },
@@ -2126,11 +2184,6 @@ $(document).ready(() => {
     }
     if ($(".reports-gallery-add-btn").hasClass("fa-minus")) {
       $(".reports-gallery-add-btn")
-        .removeClass("fa-minus")
-        .addClass("fa-plus");
-    }
-    if ($(".reports-officers-add-btn").hasClass("fa-minus")) {
-      $(".reports-officers-add-btn")
         .removeClass("fa-minus")
         .addClass("fa-plus");
     }
@@ -2263,84 +2316,33 @@ $(document).ready(() => {
           info: $(this).attr("src"),
           status: $(this).css("filter"),
         },
+        {
+          className: "copy-image-link",
+          icon: "fa-regular fa-copy",
+          text: "Copy Image Link",
+          info: $(this).attr("src"),
+          status: $(this).css("filter"),
+        },
       ];
       openContextMenu(e, args);
     }
   );
 
   $(".reports-officers-add-btn").click(function () {
-    if (canInputReportOfficerTag) {
-      $(this).removeClass("fa-plus").addClass("fa-minus");
-      $(".reports-officers-tags-holder").prepend(
-        `<span contenteditable="true" class="officer-tag-reports-input"></span>`
-      );
-      canInputReportOfficerTag = false;
-    } else if (!canInputReportOfficerTag) {
-      $(this).removeClass("fa-minus").addClass("fa-plus");
-      $(".officer-tag-reports-input").remove();
-      canInputReportOfficerTag = true;
-    }
+    const source = "reports-officers";
+    document.addEventListener("mouseup", onMouseDownIncidents);
+    $(".incidents-person-search-holder").attr("data-source", source);
+    $(".incidents-person-search-container").fadeIn(250); // makes the container visible
+    $(".close-all").css("filter", "brightness(15%)");
   });
-
-  $(".reports-officers-tags-holder").on(
-    "keydown",
-    ".officer-tag-reports-input",
-    function (e) {
-      if (e.keyCode === 13) {
-        $(".reports-officers-tags-holder").prepend(
-          `<div class="tag">${$(
-            ".officer-tag-reports-input"
-          ).text()}</div>`
-        );
-        // Have it save instantly if it's an existing report.
-        if ($(".reports-officers-add-btn").hasClass("fa-minus")) {
-          canInputReportOfficerTag = true;
-          $(".reports-officers-add-btn")
-            .removeClass("fa-minus")
-            .addClass("fa-plus");
-        }
-        canInputReportOfficerTag = true;
-        $(".officer-tag-reports-input").remove();
-      }
-    }
-  );
 
   $(".reports-civilians-add-btn").click(function () {
-    if (canInputReportCivilianTag) {
-      $(this).removeClass("fa-plus").addClass("fa-minus");
-      $(".reports-civilians-tags-holder").prepend(
-        `<span contenteditable="true" class="civilian-tag-reports-input"></span>`
-      );
-      canInputReportCivilianTag = false;
-    } else if (!canInputReportCivilianTag) {
-      $(this).removeClass("fa-minus").addClass("fa-plus");
-      $(".civilian-tag-reports-input").remove();
-      canInputReportCivilianTag = true;
-    }
+    document.addEventListener("mouseup", onMouseDownIncidents);
+    const source = "reports-civilians";
+    $(".incidents-person-search-holder").attr("data-source", source);
+    $(".incidents-person-search-container").fadeIn(250); // makes the container visible
+    $(".close-all").css("filter", "brightness(15%)");
   });
-
-  $(".reports-civilians-tags-holder").on(
-    "keydown",
-    ".civilian-tag-reports-input",
-    function (e) {
-      if (e.keyCode === 13) {
-        $(".reports-civilians-tags-holder").prepend(
-          `<div class="tag">${$(
-            ".civilian-tag-reports-input"
-          ).text()}</div>`
-        );
-        // Have it save instantly if it's an existing report.
-        if ($(".reports-civilians-add-btn").hasClass("fa-minus")) {
-          canInputReportCivilianTag = true;
-          $(".reports-civilians-add-btn")
-            .removeClass("fa-minus")
-            .addClass("fa-plus");
-        }
-        canInputReportCivilianTag = true;
-        $(".civilian-tag-reports-input").remove();
-      }
-    }
-  );
 
   $(".manage-reports-title-holder").on(
     "click",
@@ -2350,7 +2352,7 @@ $(document).ready(() => {
       //$(".manage-bolos-new").effect("shake", { times: 2, distance: 2 }, 500)
       //} else {
       let template = "";
-      if ($(".badge-logo").attr("src") == "img/ems_badge.png") {
+      if ($(".badge-logo").attr("src") == "img/ems_badge.webp") {
         template =
           "Submitted to ICU?: [Yes/No]\n\nIncident Report:\n[ Brief summary of what happened and who did what while on scene. Note anything that stood out about the scene as well as what was done to treat the patient ]\n\n\nList of Injuries:\n- [ State what injury or injuries occurred ]\n\n\n💉 Surgical Report:\n[ Full report on what was done in surgery, list any complications or anything that was found while in operation. Note who was attending and what they did during the surgery. At the end of the report be sure to note the state of the patient after ]\n\n\nAttending:\n- [ List Any Attending Here ]\n\n\nMedications Applied:\n- [ List Any Attending Here ]\n\n\nNotes:\n[ Additional Notes Here ]";
       }
@@ -2372,11 +2374,6 @@ $(document).ready(() => {
       }
       if ($(".reports-gallery-add-btn").hasClass("fa-minus")) {
         $(".reports-gallery-add-btn")
-          .removeClass("fa-minus")
-          .addClass("fa-plus");
-      }
-      if ($(".officers-add-btn").hasClass("fa-minus")) {
-        $(".officers-add-btn")
           .removeClass("fa-minus")
           .addClass("fa-plus");
       }
@@ -2460,12 +2457,12 @@ $(document).ready(() => {
         });
 
       $(".reports-civilians-tags-holder")
-        .find("div")
-        .each(function () {
-          if ($(this).text() != "") {
-            civilians.push($(this).text());
-          }
-        });
+      .find("div")
+      .each(function () {
+        if ($(this).text() != "") {
+          civilians.push($(this).text());
+        }
+      });
 
       let time = new Date();
 
@@ -2615,11 +2612,10 @@ $(document).ready(() => {
           canSaveVehicle = true;
         }, 750);
         setTimeout(() => {
-          let dbid = $(".vehicle-information-title-holder").data(
-            "dbid"
-          );
+          let dbid = $(".vehicle-information-title-holder").data("dbid");
           let plate = $(".vehicle-info-plate-input").val();
           let notes = $(".vehicle-info-content").val();
+          let points = $("#vehiclePointsSlider").val();
 
           let imageurl = $(".vehicle-info-image").attr("src");
           let newImageurl = $(".vehicle-info-imageurl-input").val();
@@ -2663,6 +2659,7 @@ $(document).ready(() => {
               stolen: stolen,
               code5: code5,
               impound: impoundInfo,
+              points: points,
             })
           );
 
@@ -2925,6 +2922,178 @@ $(document).ready(() => {
     }
   });
 
+
+  $(".calls-search-title").click(function () {
+    if (canSearchForProfiles == true) {
+      if ($(".calls-search-input").css("display") == "none") {
+        $(".calls-search-input").slideDown(250);
+        $(".calls-search-input").css("display", "block");
+      } else {
+        $(".calls-search-input").slideUp(250);
+        setTimeout(() => {
+          $(".calls-search-input").css("display", "none");
+        }, 250);
+      }
+    }
+  });
+
+  $("#calls-search-input").keydown(function (e) {
+    if (e.keyCode === 13) {
+      let searchCall = $("#calls-search-input").val();
+      if (searchCall !== "") {
+        $.post(
+          `https://${GetParentResourceName()}/searchCalls`,
+          JSON.stringify({
+            searchCall: searchCall,
+          })
+        );
+        $(".calls-items").empty();
+        $(".calls-items").prepend(`<div class="profile-loader"></div>`);
+      }
+    }
+  });
+
+  $(".weapons-search-title").click(function () {
+    if (canSearchForWeapons == true) {
+      if ($(".weapons-search-input").css("display") == "none") {
+        $(".weapons-search-input").slideDown(250);
+        $(".weapons-search-input").css("display", "block");
+      } else {
+        $(".weapons-search-input").slideUp(250);
+        setTimeout(() => {
+          $(".weapons-search-input").css("display", "none");
+        }, 250);
+      }
+    }
+  });
+
+  $("#weapons-search-input").keydown(async function (e) {
+    if (e.keyCode === 13 && canSearchForWeapons == true) {
+      let name = $("#weapons-search-input").val();
+      if (name !== "") {
+        canSearchForWeapons = false;
+        $(".weapons-items").empty();
+        $(".weapons-items").prepend(`<div class="profile-loader"></div>`);
+
+        let result = await $.post(
+          `https://${GetParentResourceName()}/searchWeapons`,
+          JSON.stringify({
+            name: name,
+          })
+        );
+        if (result.length === 0) {
+          $(".weapons-items").html(
+            `
+                            <div class="profile-item" data-id="0">
+
+                                <div style="display: flex; flex-direction: column; margin-top: 2.5px; margin-left: 5px; width: 100%; padding: 5px;">
+                                <div style="display: flex; flex-direction: column;">
+                                    <div class="profile-item-title">No Weapons Matching that search</div>
+                                    </div>
+                                    <div class="profile-bottom-info">
+                                    </div>
+                                </div>
+                            </div>
+                    `
+          );
+          canSearchForWeapons = true;
+          return true;
+        }
+        $(".weapons-items").empty();
+
+        let weaponHTML = "";
+
+        result.forEach((value) => {
+          weaponHTML += `
+                        <div class="weapons-item" data-id="${value.id}" data-dbid="${value.id}" data-serial="${value.serial}">
+                            <img src="${value.image}" class="weapons-image">
+                            <div style="display: flex; flex-direction: column; margin-top: 2.5px; margin-left: 5px; width: 100%; padding: 5px;">
+                              <div style="display: flex; flex-direction: column;">
+                                <div class="weapons-item-title">${value.weapModel} - Class ${value.weapClass}</div>
+
+                                </div>
+                                <div class="weapons-bottom-info">
+                                  <div class="weapons-id">Serial Number: ${value.serial} · Owner: ${value.owner} · ID: ${value.id}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+        });
+
+        $(".weapons-items").html(weaponHTML);
+
+        canSearchForWeapons = true;
+      }
+    }
+  });
+
+  $(".weapon-information-title-holder").on("click", ".weapon-information-new", function () {
+    $(".weapon-information-title-holder").data("dbid", 0);
+    $(".weapon-info-serial-input").val("");
+    $(".weapon-info-owner-input").val("");
+    $(".weapon-info-class-input").val("");
+    $(".weapon-info-model-input").val("");
+    $(".weapon-info-imageurl-input").val("img/not-found.webp");
+    
+    canSaveWeapon = true;
+  }
+);
+
+  $(".weapon-information-title-holder").on("click", ".weapon-information-save", function () {
+    if (canSaveProfile == true) {
+      canSaveProfile = false;
+        $(".manage-profile-save").empty();
+        $(".manage-profile-save").prepend(
+          `<span class="fas fa-check"></span>`
+        );
+        setTimeout(() => {
+          $(".manage-profile-save").empty();
+          $(".manage-profile-save").html("Save");
+          canSaveProfile = true;
+        }, 750);
+
+        setTimeout(() => {
+          let serial = $(".weapon-info-serial-input").val();
+          let notes = $(".weapon-info-content").val();
+          let owner = $(".weapon-info-owner-input").val();
+          let weapClass = $(".weapon-info-class-input").val();
+          let weapModel = $(".weapon-info-model-input").val();
+
+          let imageurl = $(".weapon-info-image").attr("src");
+          let newImageurl = $(".weapon-info-imageurl-input").val();
+          if (newImageurl.includes("base64")) {
+            imageurl = "img/not-found.webp";
+          } else {
+            imageurl = newImageurl;
+          }
+
+          $.post(
+            `https://${GetParentResourceName()}/saveWeaponInfo`,
+            JSON.stringify({
+              serial: serial,
+              imageurl: imageurl,
+              notes: notes,
+              owner: owner,
+              weapClass: weapClass,
+              weapModel: weapModel,
+            })
+          );
+
+          $(".weapon-info-image").attr("src", newImageurl);
+        }, 250);
+    }
+  }
+);
+
+  $(".weapons-items").on("click", ".weapons-item", function () {
+    $.post(
+      `https://${GetParentResourceName()}/getWeaponData`,
+      JSON.stringify({
+        serial: $(this).data("serial"),
+      })
+    );
+  });
+
   $(".contextmenu").on("click", ".view-profile", async function () {
     const cid = $(this).data("info");
     fidgetSpinner(".profile-page-container");
@@ -2943,10 +3112,12 @@ $(document).ready(() => {
     searchProfilesResults(result);
   });
 
-  $(".contextmenu").on("click", ".view-incident", function () {
+  $(".contextmenu").on("click", ".view-incident2", function () {
     const incidentId = $(this).data("info");
     fidgetSpinner(".incidents-page-container");
     currentTab = ".incidents-page-container";
+    $(".close-all").css("filter", "none");
+    $(".incidents-known-container").fadeOut(250);
     setTimeout(() => {
       $(".incidents-search-input").slideDown(250);
       $(".incidents-search-input").css("display", "block");
@@ -2974,7 +3145,51 @@ $(document).ready(() => {
       }, 250);
     }, 250);
   });
+  $(".profile-incidents-holder").on("contextmenu", ".white-tag", function (e) {
+    const args = [
+      {
+        className: "view-incident2",
+        icon: "fas fa-search",
+        text: `View Incident #${$(this).data("id")}`,
+        info: $(this).data("id"),
+        status: "",
+      },
+    ];
+    openContextMenu(e, args);
+  });
 
+  $(".contextmenu").on("click", ".view-incident", function () {
+    const incidentId = $(this).data("info");
+    fidgetSpinner(".incidents-page-container");
+    currentTab = ".incidents-page-container";
+    setTimeout(() => {
+      $(".incidents-search-input").slideDown(250);
+      $(".incidents-search-input").css("display", "block");
+      setTimeout(() => {
+        $(".close-all").css("filter", "none");
+        $("#incidents-search-input:text").val(incidentId.toString());
+        canSearchForProfiles = false;
+        $.post(
+          `https://${GetParentResourceName()}/searchIncidents`,
+          JSON.stringify({
+            incident: incidentId.toString(),
+          })
+        );
+        $(".incidents-items").empty();
+        $(".incidents-items").prepend(
+          `<div class="profile-loader"></div>`
+        );
+        setTimeout(() => {
+          $.post(
+            `https://${GetParentResourceName()}/getIncidentData`,
+            JSON.stringify({
+              id: incidentId.toString(),
+            })
+          );
+        }, 250);
+      }, 250);
+    }, 250);
+  });
   $(".warrants-items").on("contextmenu", ".warrants-item", function (e) {
     //let information = $(this).html()
     //if (information) {
@@ -2989,7 +3204,7 @@ $(document).ready(() => {
       {
         className: "view-incident",
         icon: "fas fa-search",
-        text: "View Incident",
+        text: `View Incident #${$(this).data("id")}`,
         info: $(this).data("id"),
         status: "",
       },
@@ -3176,6 +3391,12 @@ $(document).ready(() => {
     $(".close-all").css("filter", "brightness(15%)");
     $("#respondcalls").val("")*/
   });
+
+  $('#vehiclePointsSlider').change(function(){
+    var currentValue = $('#vehiclePointsSliderValue');
+    currentValue.html(this.value);
+  });
+
 
   $(".active-calls-list").on(
     "contextmenu",
@@ -3504,52 +3725,197 @@ $(document).ready(() => {
       draggedElement = 0;
     }
   });
-
+  const customThemes = {
+    lspd: {
+      color1: "#1E3955",
+      color2: "#213f5f",
+      color3: "#2C537B",
+      color4: "#23405E",
+      color5: "#152638",
+      color6: "#121f2c",
+      color7: "rgb(28, 54, 82)",
+      color8: "#2554cc",
+      color9: "#6E707C",
+      color10: "#8F741B",
+      image: "img/LSPD.webp",
+      name: "LOS SANTOS POLICE",
+    },
+    bcso: {
+      color1: "#333333",
+      color2: "#57471a",
+      color3: "#614f1d",
+      color4: "#594b27",
+      color5: "#4d3f17",
+      color6: "#433714",
+      color7: "#57471a",
+      color8: "#2554cc",
+      color9: "#6E707C",
+      color10: "#8F741B",
+      image: "img/BCSO.webp",
+      name: "BLAINE COUNTY SHERIFF OFFICE",
+    },
+    sasp: {
+      color1: "#423f39",
+      color2: "#8f7c3f",
+      color3: "#16537e",
+      color4: "#8f7c3f",
+      color5: "#0f3a58",
+      color6: "#121f2c",
+      color7: "#0f3a58",
+      color8: "#2554cc",
+      color9: "#9c9485",
+      color10: "#8F741B",
+      image: "img/sasp_badge.webp",
+      name: "SAN ANDREAS STATE POLICE",
+    },
+    sast: {
+      color1: "#2c2c2c",
+      color2: "#232323",
+      color3: "#16537e",
+      color4: "#1c1c1c",
+      color5: "#232323",
+      color6: "#121f2c",
+      color7: "#232323",
+      color8: "#2554cc",
+      color9: "#bcbcbc",
+      color10: "#8F741B",
+      image: "img/sast_badge.webp",
+      name: "SAN ANDREAS STATE TROOPERS",
+    },
+    sapr: {
+      color1: "#3b4c3a",
+      color2: "#57471a",
+      color3: "#614f1d",
+      color4: "#594b27",
+      color5: "#4d3f17",
+      color6: "#433714",
+      color7: "#57471a",
+      olor8: "#2554cc",
+      color9: "#6E707C",
+      color10: "#8F741B",
+      image: "img/sapr.webp",
+      name: "SAN ANDREAS PARK RANGERS",
+    },
+    lssd: {
+      color1: "#3b4c3a",
+      color2: "#8f7c3f",
+      color3: "#8f7c3f",
+      color4: "#806f38",
+      color5: "#4d3f17",
+      color6: "#f1c232",
+      color7: "#57471a",
+      color8: "#2554cc",
+      color9: "#6E707C",
+      color10: "#8F741B",
+      image: "img/LSSD.webp",
+      name: "LOS SANTOS SHERIFF DEPARTMENT",
+    },
+    doc: {
+      color1: "#191919",
+      color2: "#323232",
+      color3: "#000000",
+      color4: "#666666",
+      color5: "#46474f",
+      color6: "#191919",
+      color7: "#666666",
+      color8: "#2554cc",
+      color9: "#6E707C",
+      color10: "#8F741B",
+      image: "img/BBSP.webp",
+      name: "DEPARTMENT OF CORRECTIONS",
+    },
+    ambulance: {
+      color1: "#5F2121",
+      color2: "#7B2C2C",
+      color3: "#4A1C1C",
+      color4: "#5E2323",
+      color5: "#381515",
+      color6: "#2C1212",
+      color7: "#521C1C",
+      color8: "#CC2525",
+      color9: "#8A8D91",
+      color10: "#444444",
+      image: "img/ems_badge.webp",
+      name: "PILLBOX HILL MEDICAL CENTER",
+    },
+    doj: {
+      color1: "#553a1e",
+      color2: "#5f4321",
+      color3: "#7b552c",
+      color4: "#5e4123",
+      color5: "#382815",
+      color6: "#2c2312",
+      color7: "rgb(82, 60, 28)",
+      color8: "#cc9225",
+      color9: "#6E707C",
+      color10: "#8F741B",
+      image: "img/court.webp",
+      name: "DEPARTMENT OF JUSTICE",
+    },
+  }
+  function applyCustomTheme(theme) {
+    document.documentElement.style.setProperty(
+      "--color-1", /* Panels */
+        theme.color1
+        );
+    document.documentElement.style.setProperty(
+      "--color-2", /* Clock */
+        theme.color2
+        );
+    document.documentElement.style.setProperty(
+      "--color-3", /* Outlines and hover */
+        theme.color3
+        );
+    document.documentElement.style.setProperty(
+      "--color-4", /* Button Base */
+        theme.color4
+        );
+    document.documentElement.style.setProperty(
+        "--color-5",
+        theme.color5
+        );  
+    document.documentElement.style.setProperty(
+        "--color-6",
+        theme.color6
+        );
+    document.documentElement.style.setProperty(
+        "--color-7",
+        theme.color7
+        );
+    document.documentElement.style.setProperty(
+        "--color-8",
+        theme.color8
+        );
+    document.documentElement.style.setProperty(
+        "--color-9",
+        theme.color9
+        );
+    document.documentElement.style.setProperty(
+        "--color-10",
+        theme.color10
+        );
+      $(".badge-logo").attr("src", theme.image );
+      $(".header-title").html(theme.name);
+  }
   function JobColors(sentJob) {
     if (sentJob) {
-      if (PoliceJobs[sentJob] !== undefined) {
-        document.documentElement.style.setProperty(
-          "--color-1",
-          "#1E3955"
-        );
-        document.documentElement.style.setProperty(
-          "--color-2",
-          "#213F5F"
-        );
-        document.documentElement.style.setProperty(
-          "--color-3",
-          "#2C537B"
-        );
-        document.documentElement.style.setProperty(
-          "--color-4",
-          "#23405E"
-        );
-        document.documentElement.style.setProperty(
-          "--color-5",
-          "#152638"
-        );
-        document.documentElement.style.setProperty(
-          "--color-6",
-          "#121f2c"
-        );
-        document.documentElement.style.setProperty(
-          "--color-7",
-          "rgb(28, 54, 82)"
-        );
-        document.documentElement.style.setProperty(
-          "--color-8",
-          "#2554cc"
-        );
-        document.documentElement.style.setProperty(
-          "--color-9",
-          "#6E707C"
-        );
-        document.documentElement.style.setProperty(
-          "--color-10",
-          "#8f741b"
-        );
-        $(".badge-logo").attr("src", "img/sasp_badge.png");
-        $(".header-title").html("SAN ANDREAS STATE POLICE");
+      if (PoliceJobs[sentJob] !== undefined)  {
+        if (sentJob == "police") {
+            applyCustomTheme(customThemes.lspd)
+          } else if (sentJob == "bcso"){
+            applyCustomTheme(customThemes.bcso)
+          } else if (sentJob == "sasp") {
+            applyCustomTheme(customThemes.sasp)
+          } else if (sentJob == "sast") {
+            applyCustomTheme(customThemes.sast)
+
+          } else if (sentJob == "sapr") {
+            applyCustomTheme(customThemes.sapr)
+          } else if (sentJob == "lssd") {
+            applyCustomTheme(customThemes.lssd)
+          } else if (sentJob == "doc") {
+            applyCustomTheme(customThemes.doc)
+          }
         $(".bolo-nav-item").html("BOLOs");
         $(".bolos-search-title").html("Bolos");
         $("#bolos-search-input").attr("placeholder", "Search Bolo...");
@@ -3579,7 +3945,9 @@ $(document).ready(() => {
         $(".incidents-nav-item").show();
         $(".bolo-nav-item").show();
         $(".dmv-nav-item").show();
+        $(".weapons-nav-item").show()
         $(".cams-nav-item").show();
+        $(".map-nav-item").show();
         $(".dispatch-title-ofsomesort").html("Dispatch");
         $(".dispatch-comms-container").fadeIn(0);
         $(".manage-profile-name-input-1").attr("readonly", true);
@@ -3587,7 +3955,11 @@ $(document).ready(() => {
         $("#reports-officers-involved-tag-title").html(
           "Officers Involved"
         );
+        $("#bolos-officers-involved-tag-title").html(
+          "Officers Involved"
+        );
         $(".roster-iframe").attr("src", rosterLink);
+        $(".sop-iframe").attr("src", sopLink);
 
         $(".manage-profile-save").css("display", "block");
         $(".manage-profile-editing-title").css("display", "block");
@@ -3604,48 +3976,9 @@ $(document).ready(() => {
       } else if (AmbulanceJobs[sentJob] !== undefined) {
         $("#home-warrants-container").fadeOut(0);
         $("#home-reports-container").fadeIn(0);
-        document.documentElement.style.setProperty(
-          "--color-1",
-          "#5F2121"
-        );
-        document.documentElement.style.setProperty(
-          "--color-2",
-          "#7B2C2C"
-        );
-        document.documentElement.style.setProperty(
-          "--color-3",
-          "#4A1C1C"
-        );
-        document.documentElement.style.setProperty(
-          "--color-4",
-          "#5E2323"
-        );
-        document.documentElement.style.setProperty(
-          "--color-5",
-          "#381515"
-        );
-        document.documentElement.style.setProperty(
-          "--color-6",
-          "#2C1212"
-        );
-        document.documentElement.style.setProperty(
-          "--color-7",
-          "#521C1C"
-        );
-        document.documentElement.style.setProperty(
-          "--color-8",
-          "#CC2525"
-        );
-        document.documentElement.style.setProperty(
-          "--color-9",
-          "#8A8D91"
-        );
-        document.documentElement.style.setProperty(
-          "--color-10",
-          "#444444"
-        );
-        $(".badge-logo").attr("src", "img/ems_badge.png");
-        $(".header-title").html("PILLBOX HILL MEDICAL CENTER");
+        if (sentJob == "ambulance") {
+          applyCustomTheme(customThemes.ambulance)
+        }
         //$(".quote-span").html("The simplest explanation is almost always somebody screwed up.");
         $(".bolo-nav-item").html("ICU");
         $(".bolos-search-title").html("ICU Check-ins");
@@ -3679,12 +4012,18 @@ $(document).ready(() => {
         $(".incidents-nav-item").hide();
         $(".dmv-nav-item").hide();
         $(".cams-nav-item").hide();
-        $("#reports-officers-involved-tag-title").html("EMS Involved");
+        $("#reports-officers-involved-tag-title").html(
+          "EMS Involved"
+        );
+        $("#bolos-officers-involved-tag-title").html(
+          "EMS Involved"
+        );
         $(".dispatch-title-ofsomesort").html("Dispatch");
         $(".dispatch-comms-container").fadeIn(0);
         $(".manage-profile-name-input-1").attr("readonly", true);
         $(".manage-profile-name-input-2").attr("readonly", true);
         $(".roster-iframe").attr("src", rosterLink);
+        $(".sop-iframe").attr("src", sopLink);
 
         $(".manage-profile-save").css("display", "block");
         $(".manage-profile-editing-title").css("display", "block");
@@ -3699,42 +4038,10 @@ $(document).ready(() => {
         $(".manage-incidents-title ").css("margin-right", "0px")
         $(".manage-reports-title").css("margin-right", "0px").css("width", "66%");
       } else if (DojJobs[sentJob] !== undefined) {
-        document.documentElement.style.setProperty(
-          "--color-1",
-          "#553a1e"
-        );
-        document.documentElement.style.setProperty(
-          "--color-2",
-          "#5f4321"
-        );
-        document.documentElement.style.setProperty(
-          "--color-3",
-          "#7b552c"
-        );
-        document.documentElement.style.setProperty(
-          "--color-4",
-          "#5e4123"
-        );
-        document.documentElement.style.setProperty(
-          "--color-5",
-          "#382815"
-        );
-        document.documentElement.style.setProperty(
-          "--color-6",
-          "#2c2312"
-        );
-        document.documentElement.style.setProperty(
-          "--color-7",
-          "rgb(82, 60, 28)"
-        );
-        document.documentElement.style.setProperty(
-          "--color-8",
-          "#cc9225"
-        );
-        $(".badge-logo").attr("src", "img/court.png");
-        $(".header-title").html("DEPARTMENT OF JUSTICE");
+        applyCustomTheme(customThemes.doj)
         //$(".quote-span").html("Actually useless.");
         //$(".dmv-nav-item").hide();
+        $(".weapons-nav-item").show()
         $(".bolo-nav-item").hide();
         $(".dispatch-title-ofsomesort").html("Message Board");
         $(".dispatch-comms-container").fadeOut(0);
@@ -3742,6 +4049,7 @@ $(document).ready(() => {
         $(".manage-profile-name-input-2").attr("readonly", false);
         $("#home-warrants-container").css("height", "98%");
         $(".roster-iframe").attr("src", rosterLink);
+        $(".sop-iframe").attr("src", sopLink);
 
         $(".manage-profile-save").css("display", "none");
         $(".manage-profile-editing-title").css("display", "none");
@@ -3767,12 +4075,14 @@ $(document).ready(() => {
     if (eventData.type == "show") {
       if (eventData.enable == true) {
         rosterLink = eventData.rosterLink;
+        sopLink = eventData.sopLink;
         playerJob = eventData.job;
         JobColors(playerJob);
         $(".quote-span").html(randomizeQuote());
         if (PoliceJobs[playerJob] !== undefined || DojJobs[playerJob] !== undefined) {
           $(".manage-profile-licenses-container").removeClass("display_hidden");
           $(".manage-convictions-container").removeClass("display_hidden");
+          $(".manage-profile-incidents-container").removeClass("display_hidden");
           $(".manage-profile-vehs-container").removeClass("display_hidden");
           $(".manage-profile-houses-container").removeClass("display_hidden");
         }
@@ -3810,7 +4120,7 @@ $(document).ready(() => {
         $(".callsign-container").fadeOut(0);
         $(".radio-inner-container").fadeOut(0);
         $(".radio-container").fadeOut(0);
-        $(".icidents-person-search-container").fadeOut(0);
+        $(".incidents-person-search-container").fadeOut(0);
         $(".dispatch-attached-units").fadeOut(0);
         $(".respond-calls").fadeOut(0);
         $(".respond-calls-container").fadeOut(0);
@@ -3837,9 +4147,11 @@ $(document).ready(() => {
       });
 
       let policeCount = 0;
+      let saspCount = 0;
+      let bcsoCount = 0;
       let emsCount = 0;
       let dojCount = 0;
-      let fireCount = 0;
+     /*  let fireCount = 0; */
 
       let activeUnits = eventData.activeUnits;
       let cid = eventData.citizenid;
@@ -3859,8 +4171,23 @@ $(document).ready(() => {
         let callSign = unit.callSign ? unit.callSign : "000";
         let activeInfoJob = `<div class="unit-job active-info-job-unk">UNKNOWN</div>`;
         if (PoliceJobs[unit.unitType] !== undefined) {
-          policeCount++;
+          if (unit.unitType == "police") { policeCount++;
           activeInfoJob = `<div class="unit-job active-info-job-lspd">LSPD</div>`;
+          } else if(unit.unitType == "bcso")  { bcsoCount++;
+            activeInfoJob = `<div class="unit-job active-info-job-bcso">BCSO</div>`;
+          } else if(unit.unitType == "lssd")  { bcsoCount++;
+            activeInfoJob = `<div class="unit-job active-info-job-bcso">LSSD</div>`;
+          } else if(unit.unitType == "sasp")  { saspCount++;
+            activeInfoJob = `<div class="unit-job active-info-job-sasp">SASP</div>`;
+          } else if(unit.unitType == "sast")  { saspCount++;
+            activeInfoJob = `<div class="unit-job active-info-job-sasp">SAST</div>`;
+          } else if(unit.unitType == "sapr")  { saspCount++;
+            activeInfoJob = `<div class="unit-job active-info-job-sapr">SAPR</div>`;
+          } else if(unit.unitType == "judge")  { dojCount++;
+            activeInfoJob = `<div class="unit-job active-info-job-doj">DOJ</div>`;
+          } else if(unit.unitType == "doc")  { dojCount++;
+            activeInfoJob = `<div class="unit-job active-info-job-doc">DOC</div>`;
+          }
         } else if (AmbulanceJobs[unit.unitType] !== undefined) {
           activeInfoJob = `<div class="unit-job active-info-job-ambulance">Ambulance</div>`
           emsCount++;
@@ -3886,9 +4213,11 @@ $(document).ready(() => {
 
 
       $("#police-count").html(policeCount);
+      $("#sasp-count").html(saspCount);
+      $("#bcso-count").html(bcsoCount);
       $("#ems-count").html(emsCount);
       $("#doj-count").html(dojCount);
-      $("#fire-count").html(fireCount);
+      /* $("#fire-count").html(fireCount); */
     /* } else if (eventData.type == "bulletin") {
       $(".bulletin-items-continer").empty();
       $.each(eventData.data, function (index, value) {
@@ -4045,6 +4374,7 @@ $(document).ready(() => {
       );
     } else if (eventData.type == "call") {
       const value = eventData.data;
+      DispatchMAP(value);
       if (value && value.job.includes(playerJob)) {
         const prio = value["priority"];
         let DispatchItem = `<div class="active-calls-item" data-id="${value.callId}" data-canrespond="false"><div class="active-call-inner-container"><div class="call-item-top"><div class="call-number">#${value.callId}</div><div class="call-code priority-${value.priority}">${value.dispatchCode}</div><div class="call-title">${value.dispatchMessage}</div><div class="call-radio">${value.units.length}</div></div><div class="call-item-bottom">`;
@@ -4064,6 +4394,10 @@ $(document).ready(() => {
 
         if (value["firstStreet"]) {
           DispatchItem += `<div class="call-bottom-info"><span class="fas fa-map-pin"></span>${value.firstStreet}</div>`;
+        }
+
+        if (value['camId']) {
+          DispatchItem += `<div class="call-bottom-info"><span class="fas fa-camera"></span>${value.camId}</div>`;
         }
 
         if (value["callsign"]) {
@@ -4202,6 +4536,10 @@ $(document).ready(() => {
             DispatchItem += `<div class="call-bottom-info"><span class="fas fa-map-pin"></span>${value.firstStreet}</div>`;
           }
 
+          if (value['camId']) {
+            DispatchItem += `<div class="call-bottom-info"><span class="fas fa-camera"></span>${value.camId}</div>`;
+          }
+
           if (value["heading"]) {
             DispatchItem += `<div class="call-bottom-info"><span class="fas fa-share"></span>${value.heading}</div>`;
           }
@@ -4271,6 +4609,31 @@ $(document).ready(() => {
                 </div>`
         );
       });
+      $(".contextmenu").on("click", ".incidents-delete", function () {
+        $(".incidents-items")
+          .find(`[data-id="${$(this).data("info")}"]`)
+          .remove();
+        $.post(
+          `https://${GetParentResourceName()}/deleteIncidents`,
+          JSON.stringify({
+            id: $(this).data("info"),
+          })
+        );
+      });
+    
+      $(".incidents-items").on("contextmenu", ".incidents-item", function (e) {
+        var args = "";
+        args = [
+          {
+            className: "incidents-delete",
+            icon: "fas fa-times",
+            text: "Delete Incidents",
+            info: $(this).data("id"),
+            status: "",
+          },
+        ];
+        openContextMenu(e, args);
+      });
     } else if (eventData.type == "getPenalCode") {
       const titles = eventData.titles;
       const penalcode = eventData.penalcode;
@@ -4288,7 +4651,7 @@ $(document).ready(() => {
       $.each(penalcode, function (index, value) {
         $.each(value, function (i, v) {
           $(`#penal-${index}`).append(`
-                    <div class="offense-item ${v.color}-penis-code" data-sentence="${v.months}" data-fine="${v.fine}">
+                    <div class="offense-item ${v.color}-penal-code" data-id="${index}.${i}" data-sentence="${v.months}" data-fine="${v.fine}" data-descr="${v.description}">
                     <div style="display: flex; flex-direction: row; width: 100%; margin: auto; margin-top: 0vh;">
                         <div class="offense-item-offense">${v.title}</div>
                         <div class="offfense-item-name">${v.class}</div>
@@ -4336,6 +4699,7 @@ $(document).ready(() => {
         "auto"
       );
 
+
       $("#manage-incidents-title-input").val(table["title"]);
       $(".manage-incidents-reports-content").val(table["details"]);
 
@@ -4349,14 +4713,14 @@ $(document).ready(() => {
       $(".manage-incidents-officers-holder").empty();
       $.each(table["officersinvolved"], function (index, value) {
         $(".manage-incidents-officers-holder").append(
-          `<div class="manage-incidents-officers">${value}</div>`
+          `<div class="tag">${value}</div>`
         );
       });
 
       $(".manage-incidents-civilians-holder").empty();
       $.each(table["civsinvolved"], function (index, value) {
         $(".manage-incidents-civilians-holder").append(
-          `<div class="manage-incidents-civilians">${value}</div>`
+          `<div class="tag">${value}</div>`
         );
       });
 
@@ -4413,51 +4777,36 @@ $(document).ready(() => {
 
         const cid = value.cid;
 
-        if (value.associated == 1) {
-          $(".incidents-ghost-holder").prepend(
-            `<div class="associated-incidents-user-container" data-id="${value.cid}">
-                            <div class="associated-incidents-user-title">${value.name} (#${value.cid})</div>
-                            <div class="associated-incidents-user-tags-holder">
-                                <div class="associated-incidents-user-tag ${warrantTag}" data-id="${value.cid}">Warrant</div>
-                                <div class="associated-incidents-user-tag ${guiltyTag}" data-id="${value.cid}">Guilty</div>
-                                <div class="associated-incidents-user-tag ${processedTag}" data-id="${value.cid}">Processed</div>
-                                <div class="associated-incidents-user-tag ${associatedTag}" data-id="${value.cid}">Associated</div>
-                            </div>
-                            <div class="associated-incidents-user-holder" data-name="${value.cid}" style="display:none;">
-                            </div>
-                            <div class="manage-incidents-title-tag" data-id="${value.cid}" style="display:none;">Recommended Fine</div>
-                            <div class="associated-incidents-fine-input" data-id="${value.cid}" style="display:none;"><img src="https://i.imgur.com/h7S5f9J.png"> <input placeholder="0" disabled class="fine-recommended-amount" id="fine-recommended-amount" data-id="${value.cid}" type="number"></div>
-                            <div class="manage-incidents-title-tag" data-id="${value.cid}" style="display:none;">Recommended Sentence</div>
-                            <div class="associated-incidents-sentence-input" data-id="${value.cid}" style="display:none;"><img src="https://i.imgur.com/9Xn6xXK.png"> <input placeholder="0" disabled class="sentence-recommended-amount" id="sentence-recommended-amount" data-id="${value.cid}" type="number"></div>
-                            <div class="manage-incidents-title-tag" data-id="${value.cid}" style="display:none;">Fine</div>
-                            <div class="associated-incidents-fine-input" data-id="${value.cid}" style="display:none;"><img src="https://i.imgur.com/h7S5f9J.png"> <input placeholder="Enter fine here..." value="0" class="fine-amount" data-id="${value.cid}" type="number"></div>
-                            <div class="manage-incidents-title-tag" data-id="${value.cid}" style="display:none;">Sentence</div>
-                            <div class="associated-incidents-sentence-input" data-id="${value.cid}" style="display:none;"><img src="https://i.imgur.com/9Xn6xXK.png"> <input placeholder="Enter months here..." value="0" class="sentence-amount" data-id="${value.cid}" type="number"></div>
-                        </div>`
-          );
-        } else {
-          $(".incidents-ghost-holder").prepend(
-            `<div class="associated-incidents-user-container" data-id="${value.cid}">
-                            <div class="associated-incidents-user-title">${value.name} (#${value.cid})</div>
-                            <div class="associated-incidents-user-tags-holder">
-                                <div class="associated-incidents-user-tag ${warrantTag}" data-id="${value.cid}">Warrant</div>
-                                <div class="associated-incidents-user-tag ${guiltyTag}" data-id="${value.cid}">Guilty</div>
-                                <div class="associated-incidents-user-tag ${processedTag}" data-id="${value.cid}">Processed</div>
-                                <div class="associated-incidents-user-tag ${associatedTag}" data-id="${value.cid}">Associated</div>
-                            </div>
-                            <div class="associated-incidents-user-holder" data-name="${value.cid}">
-                            </div>
-                            <div class="manage-incidents-title-tag" data-id="${value.cid}">Recommended Fine</div>
-                            <div class="associated-incidents-fine-input" data-id="${value.cid}"><img src="https://i.imgur.com/h7S5f9J.png"> <input placeholder="0" disabled class="fine-recommended-amount" id="fine-recommended-amount" data-id="${value.cid}" type="number"></div>
-                            <div class="manage-incidents-title-tag" data-id="${value.cid}">Recommended Sentence</div>
-                            <div class="associated-incidents-sentence-input" data-id="${value.cid}"><img src="https://i.imgur.com/9Xn6xXK.png"> <input placeholder="0" disabled class="sentence-recommended-amount" id="sentence-recommended-amount" data-id="${value.cid}" type="number"></div>
-                            <div class="manage-incidents-title-tag" data-id="${value.cid}">Fine</div>
-                            <div class="associated-incidents-fine-input" data-id="${value.cid}"><img src="https://i.imgur.com/h7S5f9J.png"> <input placeholder="Enter fine here..." value="0" class="fine-amount" data-id="${value.cid}" type="number"></div>
-                            <div class="manage-incidents-title-tag" data-id="${value.cid}">Sentence</div>
-                            <div class="associated-incidents-sentence-input" data-id="${value.cid}"><img src="https://i.imgur.com/9Xn6xXK.png"> <input placeholder="Enter months here..." value="0" class="sentence-amount" data-id="${value.cid}" type="number"></div>
-                        </div>`
-          );
-        }
+        // If the associated field is not checked, then populate the recommended fine and sentence fields
+        const associatedIncidentsContainer = (value.associated != 1) && `
+          <div class="associated-incidents-user-holder" data-name="${cid}" ></div>
+          <div class="manage-incidents-title-tag" data-id="${cid}">Recommended Fine</div>
+          <div class="associated-incidents-fine-input" data-id="${cid}"><img src="img/h7S5f9J.webp"> <input placeholder="0" disabled class="fine-recommended-amount" id="fine-recommended-amount" data-id="${cid}" type="number"></div>
+          <div class="manage-incidents-title-tag" data-id="${cid}">Recommended Sentence</div>
+          <div class="associated-incidents-sentence-input" data-id="${cid}"><img src="img/9Xn6xXK.webp"> <input placeholder="0" disabled class="sentence-recommended-amount" id="sentence-recommended-amount" data-id="${cid}" type="number"></div>
+          <div class="manage-incidents-title-tag" data-id="${cid}">Fine</div>
+          <div class="associated-incidents-fine-input" data-id="${cid}"><img src="img/h7S5f9J.webp"> <input placeholder="Enter fine here..." value="0" class="fine-amount" data-id="${cid}" type="number"></div>
+          <div class="manage-incidents-title-tag" data-id="${cid}">Sentence</div>
+          <div class="associated-incidents-sentence-input" data-id="${cid}"><img src="img/9Xn6xXK.webp"> <input placeholder="Enter months here..." value="0" class="sentence-amount" data-id="${cid}" type="number"></div>
+          <div class="associated-incidents-controls" data-id="${cid}">
+            <div id="jail-button" class="control-button" data-id="${cid}"><span class="fa-solid fa-building-columns" style="margin-top: 3.5px;"></span> Jail</div>
+            <div id="fine-button" class="control-button" data-id="${cid}"><span class="fa-solid fa-file-invoice-dollar" style="margin-top: 3.5px;"></span> Fine</div>
+            ${canSendToCommunityService ? `<div id="community-service-button" class="control-button" data-id="${cid}"> <span class="fa-solid fa-person-digging" style="margin-top: 3.5px;"></span>Community Service</div>` : ''}
+          </div>
+        `;
+
+        $(".incidents-ghost-holder").prepend(
+          `<div class="associated-incidents-user-container" data-id="${cid}">
+              <div class="associated-incidents-user-title">${value.name} (#${cid})</div>
+              <div class="associated-incidents-user-tags-holder">
+                  <div class="associated-incidents-user-tag ${warrantTag}" data-id="${cid}">Warrant</div>
+                  <div class="associated-incidents-user-tag ${guiltyTag}" data-id="${cid}">Guilty</div>
+                  <div class="associated-incidents-user-tag ${processedTag}" data-id="${cid}">Processed</div>
+                  <div class="associated-incidents-user-tag ${associatedTag}" data-id="${cid}">Associated</div>
+              </div>
+              ${associatedIncidentsContainer}
+          </div>`
+        );
 
         $(".fine-amount")
           .filter("[data-id='" + value.cid + "']")
@@ -4487,21 +4836,21 @@ $(document).ready(() => {
       });
     } else if (eventData.type == "incidentSearchPerson") {
       let table = eventData.data;
-      $(".icidents-person-search-holder").empty();
+      $(".incidents-person-search-holder").empty();
       $.each(table, function (index, value) {
         let name = value.firstname + " " + value.lastname;
-        $(".icidents-person-search-holder").prepend(
+        $(".incidents-person-search-holder").prepend(
           `
-                    <div class="icidents-person-search-item" data-info="${name} (#${value.id})" data-cid="${value.id}" data-name="${name}">
-                        <img src="${value.profilepic}" class="icidents-person-search-item-pfp">
-                        <div class="icidents-person-search-item-right">
-                            <div class="icidents-person-search-item-right-cid-title">Citizen ID</div>
-                            <div class="icidents-person-search-item-right-cid-input"><span class="fas fa-id-card"></span> ${value.id}</div>
-                            <div class="icidents-person-search-item-right-name-title">Name</div>
-                            <div class="icidents-person-search-item-right-name-input"><span class="fas fa-user"></span> ${name}</div>
-                        </div>
-                    </div>
-                    `
+            <div class="incidents-person-search-item" data-info="${name} (#${value.id})" data-cid="${value.id}" data-name="${name}" data-callsign="${value.callsign}">
+                <img src="${value.profilepic}" class="incidents-person-search-item-pfp">
+                <div class="incidents-person-search-item-right">
+                    <div class="incidents-person-search-item-right-cid-title">Citizen ID</div>
+                    <div class="incidents-person-search-item-right-cid-input"><span class="fas fa-id-card"></span> ${value.id}</div>
+                    <div class="incidents-person-search-item-right-name-title">Name</div>
+                    <div class="incidents-person-search-item-right-name-input"><span class="fas fa-user"></span> ${name}</div>
+                </div>
+            </div>
+          `
         );
       });
     } else if (eventData.type == "boloData") {
@@ -4510,7 +4859,7 @@ $(document).ready(() => {
         "You are currently editing BOLO " + table["id"]
       );
 
-      if ($(".badge-logo").attr("src") == "img/ems_badge.png") {
+      if ($(".badge-logo").attr("src") == "img/ems_badge.webp") {
         $(".manage-bolos-editing-title").html(
           "You are editing ICU Check-in " + table["id"]
         );
@@ -4551,7 +4900,7 @@ $(document).ready(() => {
       var reportName = "General BOLO";
       canSearchForProfiles = true;
       $(".bolos-items").empty();
-      if ($(".badge-logo").attr("src") == "img/ems_badge.png") {
+      if ($(".badge-logo").attr("src") == "img/ems_badge.webp") {
         reportName = "ICU Check-in";
       }
       $.each(table, function (index, value) {
@@ -4627,6 +4976,31 @@ $(document).ready(() => {
                 </div>`
         );
       });
+      $(".contextmenu").on("click", ".reports-delete", function () {
+        $(".reports-items")
+          .find(`[data-id="${$(this).data("info")}"]`)
+          .remove();
+        $.post(
+          `https://${GetParentResourceName()}/deleteReports`,
+          JSON.stringify({
+            id: $(this).data("info"),
+          })
+        );
+      });
+    
+      $(".reports-items").on("contextmenu", ".reports-item", function (e) {
+        var args = "";
+        args = [
+          {
+            className: "reports-delete",
+            icon: "fas fa-times",
+            text: "Delete Report",
+            info: $(this).data("id"),
+            status: "",
+          },
+        ];
+        openContextMenu(e, args);
+      });
     } else if (eventData.type == "reportData") {
       let table = eventData.data;
 
@@ -4661,6 +5035,14 @@ $(document).ready(() => {
           `<div class="tag">${value}</div>`
         );
       });
+
+      $(".reports-civilians-tags-holder").empty();
+      $.each(table["civsinvolved"], function (index, value) {
+        $(".reports-civilians-tags-holder").append(
+          `<div class="tag">${value}</div>`
+        );
+      });
+
     } else if (eventData.type == "searchedVehicles") {
 
     } else if (eventData.type == "getVehicleData") {
@@ -4677,6 +5059,9 @@ $(document).ready(() => {
       $(".vehicle-info-class-input").val(table["class"]);
       $(".vehicle-info-model-input").val(table["model"]);
       $(".vehicle-info-imageurl-input").val(table["image"]);
+      let vehiclePoints = table["points"] != null ? table["points"] : 0;
+      $("#vehiclePointsSlider").val(vehiclePoints);
+      $("#vehiclePointsSliderValue").html(vehiclePoints);
 
       $(".vehicle-info-content").val(table["information"]);
 
@@ -4707,19 +5092,53 @@ $(document).ready(() => {
         stolen = "green-tag";
       }
 
-      $(".vehicle-tags").append(
-        `<div class="vehicle-tag ${impound} impound-tag">Impound</div>`
-      );
-      $(".vehicle-tags").append(
-        `<div class="vehicle-tag ${bolo}">BOLO</div>`
-      );
-      $(".vehicle-tags").append(
-        `<div class="vehicle-tag ${codefive} code5-tag">Code 5</div>`
-      );
-      $(".vehicle-tags").append(
-        `<div class="vehicle-tag ${stolen} stolen-tag">Stolen</div>`
-      );
+      $(".vehicle-tags").append(`<div class="vehicle-tag ${impound} impound-tag">Impound</div>`);
+      $(".vehicle-tags").append(`<div class="vehicle-tag ${bolo}">BOLO</div>`);
+      $(".vehicle-tags").append(`<div class="vehicle-tag ${codefive} code5-tag">Code 5</div>`);
+      $(".vehicle-tags").append(`<div class="vehicle-tag ${stolen} stolen-tag">Stolen</div>`);
       $(".vehicle-info-imageurl-input").val(table["image"]);
+    } else if (eventData.type == "getWeaponData") {
+      impoundChanged = false;
+      let table = eventData.data;
+
+      $(".weapon-information-title-holder").data( "dbid", table["id"] );
+
+      $(".weapon-info-serial-input").val(table["serial"]);
+      $(".weapon-info-owner-input").val(table["owner"]);
+      $(".weapon-info-class-input").val(table["weapClass"]);
+      $(".weapon-info-model-input").val(table["weapModel"]);
+      $(".weapon-info-imageurl-input").val(table["image"]);
+
+      $(".weapon-info-content").val(table["information"]);
+
+      $(".weapon-info-image").attr("src", table["image"]);
+
+      $(".weapon-info-imageurl-input").val(table["image"]);
+      $(".contextmenu").on("click", ".weapons-delete", function () {
+        $(".weapons-items")
+          .find(`[data-id="${$(this).data("info")}"]`)
+          .remove();
+        $.post(
+          `https://${GetParentResourceName()}/deleteWeapons`,
+          JSON.stringify({
+            id: $(this).data("info"),
+          })
+        );
+      });
+    
+      $(".weapons-items").on("contextmenu", ".weapons-item", function (e) {
+        var args = "";
+        args = [
+          {
+            className: "weapons-delete",
+            icon: "fas fa-times",
+            text: "Delete Weapon Info",
+            info: $(this).data("id"),
+            status: "",
+          },
+        ];
+        openContextMenu(e, args);
+      });
     } else if (eventData.type == "updateVehicleDbId") {
       $(".vehicle-information-title-holder").data("dbid", Number(eventData.data));
     } else if (eventData.type == "updateIncidentDbId") {
@@ -4746,6 +5165,7 @@ $(document).ready(() => {
         "pointer-events",
         "auto"
       );
+
     } else if (eventData.type == "callDetach") {
       $(".active-calls-item")
         .filter("[data-id='" + eventData.callid + "']")
@@ -4762,10 +5182,10 @@ $(document).ready(() => {
         .html(eventData.data);
     } else if (eventData.type == "getAllLogs") {
       let table = eventData.data;
-      $(".stafflogs-container").empty();
+      $(".stafflogs-box").empty();
       $.each(table, function (index, value) {
-        $(".stafflogs-container").append(
-          `<p style="margin : 0; padding-top:0.8vh;">• ${value.text
+        $(".stafflogs-box").append(
+          `<p style="margin : 0; padding-top:0.8vh;">► ${value.text
           } <span style="color: grey; float: right; padding-right: 1vh;">(${timeAgo(
             Number(value.time)
           )})</span></p>`
@@ -4872,6 +5292,39 @@ function addTag(tagInput) {
   );
 }
 
+// Use the customSentence if defined, otherwise use the recommendedSentence
+// This uses the assumption that customSentence will be 0 if not defined
+function sendToJail(citizenId, customSentence, recommendedSentence) {
+  const sentence = Number(customSentence) || Number(recommendedSentence);
+
+  $.post(`https://${GetParentResourceName()}/sendToJail`, JSON.stringify({
+    citizenId,
+    sentence,
+  }));
+}
+
+// Use the customSentence if defined, otherwise use the recommendedSentence
+// This uses the assumption that customSentence will be 0 if not defined
+function sendToCommunityService(citizenId, customSentence, recommendedSentence) {
+  const sentence = Number(customSentence) || Number(recommendedSentence);
+
+  $.post(`https://${GetParentResourceName()}/sendToCommunityService`, JSON.stringify({
+    citizenId,
+    sentence,
+  }));
+}
+
+// Use the customFine if defined, otherwise use the recommendedFine
+// This uses the assumption that customFine will be 0 if not defined
+function sendFine(citizenId, customFine, recommendedFine) {
+  const fine = Number(customFine) || Number(recommendedFine);
+
+  $.post(`https://${GetParentResourceName()}/sendFine`, JSON.stringify({
+    citizenId,
+    fine,
+  }));
+}
+
 // Context menu
 
 var menu = document.querySelector(".contextmenu");
@@ -4882,12 +5335,23 @@ function showMenu(x, y) {
   $(".contextmenu").addClass("contextmenu-show");
 }
 
+function showChargesMenu(x, y) {
+  $(".ccontextmenu").css("left", x + "px");
+  $(".ccontextmenu").css("top", y + "px");
+  $(".ccontextmenu").addClass("ccontextmenu-show");
+}
+
 function hideMenu() {
   $(".contextmenu").removeClass("contextmenu-show");
 }
 
+function hideChargesMenu() {
+  $(".ccontextmenu").removeClass("ccontextmenu-show");
+}
+
 function onMouseDown(e) {
   hideMenu();
+  hideChargesMenu();
   document.removeEventListener("mouseup", onMouseDown);
 }
 
@@ -4912,11 +5376,38 @@ function openContextMenu(e, args) {
   document.addEventListener("mouseup", onMouseDown);
 }
 
+function openChargesContextMenu(e, args) {
+  e.preventDefault();
+  showChargesMenu(e.pageX, e.pageY);
+  $(".ccontextmenu").empty();
+  $.each(args, function (index, value) {
+    if (value.status !== "blur(5px)") {
+      $(".ccontextmenu").prepend(
+        `
+        <li class="ccontextmenu-item ${value.className}" data-info="${value.info}" data-status="${value.status}">
+            <span class="ccontextmenu-text">${value.info}</span>
+        </li>
+        `
+      );
+    }
+  });
+  document.addEventListener("mouseup", onMouseDown);
+}
+
 function expandImage(url) {
   $(".close-all").css("filter", "brightness(35%)");
   $(".gallery-image-enlarged").fadeIn(150);
   $(".gallery-image-enlarged").css("display", "block");
   $(".gallery-image-enlarged").attr("src", url);
+}
+
+function copyImageSource(url) {
+  const el = document.createElement('textarea');
+  el.value = url;
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand('copy');
+  document.body.removeChild(el); 
 }
 
 function removeImage(url) {
@@ -4926,19 +5417,33 @@ function removeImage(url) {
     .remove();
 }
 
-function hideIcidentsMenu() {
+function hideIncidentsMenu() {
   if (
-    $(".icidents-person-search-container").css("display") != "none" &&
+    $(".incidents-person-search-container").css("display") != "none" &&
     !mouse_is_inside
   ) {
-    $(".icidents-person-search-container").fadeOut(250);
+    $(".incidents-person-search-container").fadeOut(250);
+    $(".close-all").css("filter", "none");
+  }
+  if (
+    $(".convictions-known-container").css("display") != "none" &&
+    !mouse_is_inside
+  ) {
+    $(".convictions-known-container").fadeOut(0);
+    $(".close-all").css("filter", "none");
+  }
+  if (
+    $(".incidents-known-container").css("display") != "none" &&
+    !mouse_is_inside
+  ) {
+    $(".incidents-known-container").fadeOut(0);
     $(".close-all").css("filter", "none");
   }
 }
 
-function onMouseDownIcidents(e) {
-  hideIcidentsMenu();
-  document.removeEventListener("mouseup", onMouseDownIcidents);
+function onMouseDownIncidents(e) {
+  hideIncidentsMenu();
+  document.removeEventListener("mouseup", onMouseDownIncidents);
 }
 
 function titleCase(str) {
@@ -4974,22 +5479,30 @@ function searchProfilesResults(result) {
 
   result.forEach((value) => {
     let charinfo = value.charinfo;
-    let metadata = value.licences;
-
+    let metadata = value.metadata;
+  
     if (typeof value.charinfo == "string") {
       charinfo = JSON.parse(charinfo);
     }
-
+  
     if (typeof value.metadata == "string") {
       metadata = JSON.parse(metadata);
     }
-
+  
+    if (!metadata) {
+      metadata = {};
+    }
+  
+    if (!metadata.licences) {
+      metadata.licences = {};
+    }
+  
     let name = charinfo.firstname + " " + charinfo.lastname;
     let warrant = "red-tag";
     let convictions = "red-tag";
-
+  
     let licences = "";
-    let licArr = Object.entries(value.licences);
+    let licArr = Object.entries(metadata.licences);
 
     if (licArr.length == 0 || licArr.length == undefined) {
       var licenseTypes = ['business', 'pilot', 'weapon', 'driver'];
@@ -5030,9 +5543,13 @@ function searchProfilesResults(result) {
                               <div class="profile-tags">
                                   ${licences}
                               </div>
+                              <div class="profile-criminal-tags">
+                                  <span class="license-tag ${warrant}">${value.warrant ? "Active" : "No"} Warrant</span>
+                                  <span class="license-tag ${convictions}">${value.convictions} Convictions </span>
+                              </div>
                           </div>
                           <div class="profile-bottom-info">
-                              <div class="profile-id">ID: ${value.citizenid}</div>&nbsp;
+                              <div class="profile-id"><span class="fas fa-id-card"></span> Citizen ID: ${value.citizenid}</div>&nbsp;
                           </div>
                       </div>
                   </div>
@@ -5040,6 +5557,29 @@ function searchProfilesResults(result) {
   });
 
   $(".profile-items").html(profileHTML);
+}
+
+window.addEventListener('message', (event) => {
+  if (event.data.action === 'updateOfficerData') {
+      updateOfficerData(event.data.data);
+  }
+});
+
+function updateOfficerData(officerData) {
+  const leaderboardBox = document.querySelector('.leaderboard-box');
+  leaderboardBox.innerHTML = '';
+
+  officerData.forEach((officer, index) => {
+      const position = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'][index];
+      const officerDiv = document.createElement('div');
+      officerDiv.className = 'leaderboard-box-test';
+      officerDiv.style.fontSize = '1.3vh';
+      officerDiv.style.fontWeight = 'lighter';
+      officerDiv.style.color = index < 3 ? 'white' : 'grey';
+
+      officerDiv.innerHTML = `► ${position}: ${officer.name} (${officer.callsign})<span style="float: right; padding-right: 1vh;">${officer.totalTime}</span>`;
+      leaderboardBox.appendChild(officerDiv);
+  });
 }
 
 window.addEventListener("load", function () {
@@ -5073,10 +5613,126 @@ window.addEventListener("load", function () {
     });
 });
 
-/* Roster added by wayde */
-window.addEventListener('message', (event) => {
-	let data = event.data
-	if(data.action == 'showRoster') {
-	 document.getElementById('showRoster').innerHTML = data.roster
-	}
-})
+
+          // Dispatch Map //  
+customcrs = L.extend({}, L.CRS.Simple, {
+  projection: L.Projection.LonLat,
+  scale: function(zoom) {
+
+      return Math.pow(2, zoom);
+  },
+  zoom: function(sc) {
+
+      return Math.log(sc) / 0.6931471805599453;
+  },
+  distance: function(pos1, pos2) {
+      var x_difference = pos2.lng - pos1.lng;
+      var y_difference = pos2.lat - pos1.lat;
+      return Math.sqrt(x_difference * x_difference + y_difference * y_difference);
+  },
+  transformation: new L.Transformation(0.02072, 117.3, -0.0205, 172.8),
+  infinite: false
+});
+
+var map = L.map("map-item", {
+crs: customcrs,
+minZoom: 3,
+maxZoom: 5,
+zoom: 5,
+
+noWrap: true,
+continuousWorld: false,
+preferCanvas: true,
+
+center: [0, -1024],
+maxBoundsViscosity: 1.0
+});
+
+var customImageUrl = 'https://i1.lensdump.com/i/gj7atT.png';
+
+var sw = map.unproject([0, 1024], 3 - 1);
+var ne = map.unproject([1024, 0], 3 - 1);
+var mapbounds = new L.LatLngBounds(sw, ne);
+map.setView([-300, -1500], 4);
+map.setMaxBounds(mapbounds);
+
+
+map.attributionControl.setPrefix(false)
+
+L.imageOverlay(customImageUrl, mapbounds).addTo(map);
+
+map.on('dragend', function() {
+  if (!mapbounds.contains(map.getCenter())) {
+      map.panTo(mapbounds.getCenter(), { animate: false });
+  }
+});
+
+var Dispatches = {};
+var DispatchPing = L.divIcon({
+  html: '<i class="fa fa-location-dot fa-2x"></i>',
+  iconSize: [20, 20],
+  className: 'map-icon map-icon-ping',
+  offset: [-10, 0]
+});
+var mapMarkers = L.layerGroup();
+
+function DispatchMAP(DISPATCH) {
+  var MIN = Math.round(Math.round((new Date() - new Date(DISPATCH.time)) / 1000) / 60);
+  if (MIN > 10) return;
+
+  var COORDS_X = DISPATCH.origin.x
+  var COORDS_Y = DISPATCH.origin.y
+  var CODE = DISPATCH.callId
+
+  Dispatches[CODE] = L.marker([COORDS_Y, COORDS_X], { icon: DispatchPing });
+  Dispatches[CODE].addTo(map);
+
+  // Automatic deletion after a period of 20 minutes, equivalent to 1200000 milliseconds.
+  setTimeout(function() {
+    map.removeLayer(Dispatches[CODE]);
+  }, 1200000);
+  
+  Dispatches[CODE].bindTooltip(`<div class="map-tooltip-info">${DISPATCH.dispatchMessage}</div></div><div class="map-tooltip-id">#${DISPATCH.callId}</div>`,
+      {
+          direction: 'top',
+          permanent: false,
+          offset: [0, -10],
+          opacity: 1,
+          interactive: true,
+          className: 'map-tooltip'
+  });
+
+  Dispatches[CODE].addTo(mapMarkers);
+
+  Dispatches[CODE].on('click', function() {
+      const callId = CODE
+      $.post(
+          `https://${GetParentResourceName()}/setWaypoint`,
+          JSON.stringify({
+              callid: callId,
+          })
+      );
+  });
+
+  Dispatches[CODE].on('contextmenu', function() {
+      map.removeLayer(Dispatches[CODE]);
+  });
+
+}
+
+function ClearMap() {
+$(".leaflet-popup-pane").empty();
+$(".leaflet-marker-pane").empty();
+}
+
+$(".map-clear").on('click', function() {
+    $(".map-clear").empty();
+    $(".map-clear").prepend(
+      `<span class="fas fa-spinner fa-spin"></span>`
+    );
+    setTimeout(() => {
+      $(".map-clear").empty();
+      $(".map-clear").html("Clear");
+      ClearMap();
+    }, 1500);
+});
