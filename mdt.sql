@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS `mdt_data` (
   `gallery` TEXT NOT NULL,
   `jobtype` VARCHAR(25) DEFAULT 'police',
   `pfp` TEXT DEFAULT NULL,
-  `fingerprint` VARCHAR(50) DEFAULT NULL,
   PRIMARY KEY (`cid`),
   KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -98,7 +97,20 @@ CREATE TABLE IF NOT EXISTS `mdt_vehicleinfo` (
   `stolen` tinyint(1) NOT NULL DEFAULT 0,
   `code5` tinyint(1) NOT NULL DEFAULT 0,
   `image` text NOT NULL DEFAULT '',
+  `points` int(11) DEFAULT 0,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `mdt_weaponinfo` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `serial` varchar(50) DEFAULT NULL,
+  `owner` varchar(50) DEFAULT NULL,
+  `information` text NOT NULL DEFAULT '',
+  `weapClass` varchar(50) DEFAULT NULL,
+  `weapModel` varchar(50) DEFAULT NULL,
+  `image` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `serial` (`serial`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `mdt_impound` (
@@ -109,3 +121,15 @@ CREATE TABLE IF NOT EXISTS `mdt_impound` (
   `time` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `mdt_clocking` (
+  `id` int(10) NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(50) NOT NULL DEFAULT '',
+  `firstname` varchar(255) NOT NULL DEFAULT '',
+  `lastname` varchar(255) NOT NULL DEFAULT '',
+  `clock_in_time` varchar(255) NOT NULL DEFAULT '',
+  `clock_out_time` varchar(50) DEFAULT NULL,
+  `total_time` varchar(50) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`user_id`) USING BTREE,
+  KEY `id` (`id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
