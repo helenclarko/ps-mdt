@@ -979,14 +979,14 @@ $(document).ready(() => {
   });
 
   $(".contextmenu").on("click", ".revoke-licence", function () {
-    // $.post(
-    //   `https://${GetParentResourceName()}/updateLicence`,
-    //   JSON.stringify({
-    //     cid: $(".manage-profile-citizenid-input").val(),
-    //     type: $(this).data("status"),
-    //     status: "revoke",
-    //   })
-    // );
+     $.post(
+       `https://${GetParentResourceName()}/updateLicence`,
+       JSON.stringify({
+         cid: $(".manage-profile-citizenid-input").val(),
+         type: $(this).data("status"),
+         status: "revoke",
+       })
+     );
 
     const Elem = $(this).data("status");
     $(".license-tag")
@@ -998,14 +998,14 @@ $(document).ready(() => {
   });
 
   $(".contextmenu").on("click", ".give-licence", function () {
-    // $.post(
-    //   `https://${GetParentResourceName()}/updateLicence`,
-    //   JSON.stringify({
-    //     cid: $(".manage-profile-citizenid-input").val(),
-    //     type: $(this).data("status"),
-    //     status: "give",
-    //   })
-    // );
+     $.post(
+       `https://${GetParentResourceName()}/updateLicence`,
+       JSON.stringify({
+         cid: $(".manage-profile-citizenid-input").val(),
+         type: $(this).data("status"),
+         status: "give",
+       })
+     );
 
     const Elem = $(this).data("status");
     $(".license-tag")

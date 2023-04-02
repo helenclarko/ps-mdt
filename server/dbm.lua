@@ -137,7 +137,7 @@ end
 function ManageLicense(identifier, type, status)
     local Player = QBCore.Functions.GetPlayerByCitizenId(identifier)
     local licenseStatus = nil
-    if status == "give" then licenseStatus = true elseif status == "revoke" then licenseStatus = false end
+    if status == "give" then licenseStatus = true elseif status == "revoke" then licenseStatus = false TriggerClientEvent('QBCore:Notify', Player.PlayerData.source, "You have had a license revoked","error", 5000) end
     if Player ~= nil then
         local licences = Player.PlayerData.metadata["licences"]
         local newLicenses = {}
@@ -149,9 +149,10 @@ function ManageLicense(identifier, type, status)
             newLicenses[k] = status
         end
         Player.Functions.SetMetaData("licences", newLicenses)
+        TriggerClientEvent('QBCore:Notify', Player.PlayerData.source, "You have been granted a license","success", 5000)
     else
         local licenseType = '$.licences.'..type
-        local result = MySQL.query.await('UPDATE `players` SET `metadata` = JSON_REPLACE(`metadata`, ?, ?) WHERE `citizenid` = ?', {licenseType, licenseStatus, identifier}) --seems to not work on older MYSQL versions, think about alternative
+        local result = MySQL.Async.execute('UPDATE `players` SET `metadata` = JSON_REPLACE(`metadata`, ?, ?) WHERE `citizenid` = ?', {licenseType, licenseStatus, identifier}) --seems to not work on older MYSQL versions, think about alternative
     end
 end
 

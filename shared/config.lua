@@ -29,7 +29,7 @@ Config.Fuel = "lj-fuel"
 -- Google Docs Link
 Config.sopLink = {
     ['police'] = '',
-    ['ambulance'] = '',
+    ['ambulance'] = 'https://docs.google.com/document/d/1e3iFE1nj6nnizxF-t3rPNeFf7segZtQCgcmdWjTWLnc/edit?usp=sharing',
     ['bcso'] = '',
     ['doj'] = '',
     ['sast'] = '',
@@ -41,7 +41,7 @@ Config.sopLink = {
 
 -- Google Docs Link
 Config.RosterLink = {
-    ['police'] = '',
+    ['police'] = 'https://docs.google.com/document/d/1XyArWbGumJGxlX8gEoCdDOmvj_rK8ebrNcqAiNKLCRQ/edit?usp=sharing',
     ['ambulance'] = '',
     ['bcso'] = '',
     ['doj'] = '',
